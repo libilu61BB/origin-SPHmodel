@@ -28,6 +28,7 @@ else
 end
 %% 计算各粒子和压强
 avg_Radius=mean(Radius);
+h2 = 2*avg_Radius;
 % Rho_p2p=m_person*(4/(pi*h1^8))*(h1^2-4*avg_Radius^2)^3+m_person*(4/(pi*h1^2)); %人与人之间的临界密度
 % % Rho_p2p=m_person*(4/(pi*h1^8))*(h1^2-4*avg_Radius^2)^3; %人与人之间的临界密度
 % Rho_p2w=m_person*(4/(pi*h1^8))*(h1^2-avg_Radius^2)^3+m_wall*(4/(pi*h1^2)); %人与障碍之间的临界密度
@@ -59,8 +60,8 @@ for i=1:n
         d(j)=sqrt((person_x(i)-wall_x(j))^2+(person_y(i)-wall_y(j))^2);
     end
     [r,u]=min(d); %r为d中最小值，u为d中最小值的索引
-    if r<=h1
-        abs_ar=m_wall*(Pr_person(i)/Rho_person(i)^2+Pr_wall(u)/Rho_wall(u)^2)*(3*(10*(h1-r)^2)/(pi*h1^5));
+    if r<=h2
+        abs_ar=m_wall*(Pr_person(i)/Rho_person(i)^2+Pr_wall(u)/Rho_wall(u)^2)*(3*(10*(h2-r)^2)/(pi*h2^5));
         %加速度的模长
         ar_x(i)=ar_x(i)+abs_ar*(person_x(i)-wall_x(u))/r; %将加速度分解到x轴
         ar_y(i)=ar_y(i)+abs_ar*(person_y(i)-wall_y(u))/r; %将加速度分解到y轴
