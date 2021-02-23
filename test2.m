@@ -45,7 +45,7 @@ T=200; %模拟总时间
 sum_escape=0;%统计已疏散的人数
 P=1;%熟悉逃生路线的行人比例
 P_f=1;%从众程度
-dt=0.03;
+dt=0.02;
 
 %% 朗之万随机力相关设置
 P_r=0.5^dt;%加速度朗之万分量的时间权重
@@ -147,7 +147,7 @@ for t=0:dt:T
     yita=A*rand(1,n);%行人加速度的朗之万随机分量，为服从高斯分布的随机数
     theta=2*pi*rand(1,n);%行人加速度朗之万随机分量的方向，为[0,2*pi]内的随机数
     al_x=P_r*al_x + (1-P_r)*yita.*cos(theta);%行人加速度在x方向上的朗之万随机力分量
-    al_y=P_r*al_x + (1-P_r)*yita.*sin(theta);%行人加速度在y方向上的朗之万随机力分量
+    al_y=P_r*al_y + (1-P_r)*yita.*sin(theta);%行人加速度在y方向上的朗之万随机力分量
     %% 计算行人的位置
     ax = am_x+ar_x+ae_x+av_x+al_x;%1行n列，t时刻各行人粒子x方向的合加速度
     ay = am_y+ar_y+ae_y+av_y+al_y;%1行n列，t时刻各行人粒子y方向的合加速度
@@ -163,6 +163,7 @@ for t=0:dt:T
     vy(index_V1) = vy(index_V1).*va./V1(index_V1);
     vx(index_V2+floor(n/2)) = vx(index_V2+floor(n/2)).*vb./V2(index_V2);%假设后一半行人为高速行人
     vy(index_V2+floor(n/2)) = vy(index_V2+floor(n/2)).*vb./V2(index_V2); 
+    
 %     for i=1:n %若下一时刻的速度大于v0，则将其缩小到v0
 %         r = sqrt(vx(i)^2+vy(i)^2);
 %         if r>=va
@@ -213,6 +214,7 @@ for t=0:dt:T
 %     set(gcf,'position',[0,0,1000,1000]);
     
     % 2X100画图
+    
     plot(wall_x1,wall_y1,'LineWidth',1,'Color','k');
     hold on;
     plot(wall_x2,wall_y2,'LineWidth',1,'Color','k');
