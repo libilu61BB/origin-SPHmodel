@@ -36,8 +36,9 @@ h1=5;%计算密度和排斥力时使用的核半径
 Radius=0.3*ones(1,n);%假设行人的半径均为0.3m
 m_person=70;%行人的质量
 m_wall=500;%障碍物的质量
-va=1.2; %低速行人的期望速度值
-vb=1.8; %高速行人的期望速度值
+% va=1.2; %低速行人的期望速度值
+% vb=1.8; %高速行人的期望速度值
+v0 = [1.8*ones(1,floor(n/2)),1.2*ones(1,n-floor(n/2))]; %定义行人的期望速度，前一半为低速行人，后一半为高速行人,floor为向下取整
 u=2; %粘度，用于计算粒子之间摩擦力产生的加速度
 vx=zeros(1,n);%行人速度在x方向上的分量，初始时刻为0
 vy=zeros(1,n);%行人速度在y方向上的分量，初始时刻为0
@@ -130,17 +131,17 @@ for t=0:dt:T
     for i=1:n
 %         am_x(i)=(v0*e_x(i)-vx(i))/dt;
 %         am_y(i)=(v0*e_y(i)-vy(i))/dt;
-        temp_am_x=(va*e_x(i)-vx(i))/dt;
+        temp_am_x=(v0(i)*e_x(i)-vx(i))/dt;
         if temp_am_x>=0
-            am_x(i)=min((va*e_x(i)-vx(i))/dt,20);
+            am_x(i)=min((v0(i)*e_x(i)-vx(i))/dt,20);
         else
-            am_x(i)=max((va*e_x(i)-vx(i))/dt,-20);
+            am_x(i)=max((v0(i)*e_x(i)-vx(i))/dt,-20);
         end
-        temp_am_y=(va*e_y(i)-vy(i))/dt;
+        temp_am_y=(v0(i)*e_y(i)-vy(i))/dt;
         if temp_am_y>=0
-            am_y(i)=min((va*e_y(i)-vy(i))/dt,20);
+            am_y(i)=min((v0(i)*e_y(i)-vy(i))/dt,20);
         else
-            am_y(i)=max((va*e_y(i)-vy(i))/dt,-20);
+            am_y(i)=max((v0(i)*e_y(i)-vy(i))/dt,-20);
         end
     end
     %% 计算朗之万随机加速度
@@ -148,55 +149,65 @@ for t=0:dt:T
     theta=2*pi*rand(1,n);%行人加速度朗之万随机分量的方向，为[0,2*pi]内的随机数
     al_x=P_r*al_x + (1-P_r)*yita.*cos(theta);%行人加速度在x方向上的朗之万随机力分量
     al_y=P_r*al_y + (1-P_r)*yita.*sin(theta);%行人加速度在y方向上的朗之万随机力分量
+    %% 计算行人跟随行为产生的加速度
+    a_graX = zeros(1,n); %初始化X跟随加速度
+    a_graY = zeros(1,n); %初始化Y跟随加速度
+    for i=1:n
+        for j=1:n
+            if i==j
+                continue;
+            end
+            Dij = [person_x(j)-person_x(i),person_y(j)-person_y(i)]; %由i指向j的位置向量Dij
+            Vi = [vx(i),vy(i)]; %粒子i的速度向量Vi
+            L = sqrt(sum(Dij.^2)); %向量ij的模，相当于两粒子的距离
+            if L<=2 && sum(Dij.*Vi)>0 %当距离小于等于2且j位于i的前方时才进行后续计算
+                ei = [exit_x-person_x(i),exit_y-person_y(i)]/sqrt(sum([exit_x-person_x(i),exit_y-person_y(i)].^2)); %由粒子i指向出口的单位向量
+                Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
+                Bij_3 = max(0,sum(ei.*Vj)/sqrt(sum(Vj.^2)));
+                if Bij_3==0
+                    continue;
+                else
+                    Bij_4 = min(sqrt(sum(Vj.^2))/v0(i),1);
+                    Bij_5 = min(exp(1)^((Radius(i)+Radius(j))-L),1);
+                    a_graX(i) = a_graX(i)+0.4*v0(i)*Bij_3*Bij_4*Bij_5*Dij(1)/L; %计算X跟随加速度
+                    a_graY(i) = a_graY(i)+0.4*v0(i)*Bij_3*Bij_4*Bij_5*Dij(2)/L; %计算Y跟随加速度
+                end         
+            end
+        end
+    end
     %% 计算行人的位置
     ax = am_x+ar_x+ae_x+av_x+al_x;%1行n列，t时刻各行人粒子x方向的合加速度
     ay = am_y+ar_y+ae_y+av_y+al_y;%1行n列，t时刻各行人粒子y方向的合加速度
     vx = vx+ax*dt; %计算下一时刻的x方向速度
     vy = vy+ay*dt; %计算下一时刻的y方向速度
     V = sqrt(vx.^2+vy.^2);
-    V1 = V(1:floor(n/2));%前一半的行人的合速度，floor为向下取整
-    V2 = V(floor(n/2)+1:n);%后一半行人的合速度
-    index_V1 = find(V1>va);%找出超速的低速行人，储存矩阵的索引
-    index_V2 = find(V2>vb);%找出超速的高速行人，储存矩阵的索引
+    index = find(V>v0); %找出超速粒子的索引
+    vx(index) = vx(index).*v0(index)./V(index);
+    vy(index) = vy(index).*v0(index)./V(index);
     
-    vx(index_V1) = vx(index_V1).*va./V1(index_V1);%假设前一半行人为低速行人
-    vy(index_V1) = vy(index_V1).*va./V1(index_V1);
-    vx(index_V2+floor(n/2)) = vx(index_V2+floor(n/2)).*vb./V2(index_V2);%假设后一半行人为高速行人
-    vy(index_V2+floor(n/2)) = vy(index_V2+floor(n/2)).*vb./V2(index_V2); 
+%     V1 = V(1:floor(n/2));%前一半的行人的合速度，floor为向下取整
+%     V2 = V(floor(n/2)+1:n);%后一半行人的合速度
+%     index_V1 = find(V1>va);%找出超速的低速行人，储存矩阵的索引
+%     index_V2 = find(V2>vb);%找出超速的高速行人，储存矩阵的索引
+%     
+%     vx(index_V1) = vx(index_V1).*va./V1(index_V1);%假设前一半行人为低速行人
+%     vy(index_V1) = vy(index_V1).*va./V1(index_V1);
+%     vx(index_V2+floor(n/2)) = vx(index_V2+floor(n/2)).*vb./V2(index_V2);%假设后一半行人为高速行人
+%     vy(index_V2+floor(n/2)) = vy(index_V2+floor(n/2)).*vb./V2(index_V2); 
     
-%     for i=1:n %若下一时刻的速度大于v0，则将其缩小到v0
-%         r = sqrt(vx(i)^2+vy(i)^2);
-%         if r>=va
-%             vx(i) = vx(i)*va/r;
-%             vy(i) = vy(i)*va/r;
-%         end
-%     end
-%     for i=1:n
-%         if person_x(i)>15
-%             vx(i) = va;
-%             vy(i) = 0;
-%         end
-%     end
     person_x = person_x+vx*dt; %计算x方向的位移
     person_y = person_y+vy*dt; %计算y方向的位移
     
-    %%
+    %% 计算行人粒子的间距
     [minP2P, minP2W] = minDistance(person_x,person_y,wall_x,wall_y);
+    
 %     if minP2P < 0.5
 %         fprintf("person min < 0.5");
 %     end
 %     if minP2W < 0.3
 %         fprintf("wall min < 0.3");
 %     end
-    
-    %%
-    %for i=1:n
-        %if person_x(i)>exit_x %行人通过出口后沿x方向离开
-            %vx(i)=v0;
-            %vy(i)=0;
-            %continue;
-        %end       
-    %end 
+
     %% 绘制图像
     for i=1:n %统计逃离人数
         if person_x(i)>(end_x)
