@@ -1,3 +1,8 @@
+%% 更新日志
+% 2021-02-24
+% 将行人期望速度保存至矩阵v0(1行n列，原版本为高速和低速两个标量)
+% 添加跟随加速度
+
 clear;
 % %% 设置障碍物坐标、行人坐标和出口坐标
 % %15m×15m正方形空间，出口宽度3m
@@ -176,8 +181,8 @@ for t=0:dt:T
         end
     end
     %% 计算行人的位置
-    ax = am_x+ar_x+ae_x+av_x+al_x;%1行n列，t时刻各行人粒子x方向的合加速度
-    ay = am_y+ar_y+ae_y+av_y+al_y;%1行n列，t时刻各行人粒子y方向的合加速度
+    ax = am_x+ar_x+ae_x+av_x+al_x+a_graX;%1行n列，t时刻各行人粒子x方向的合加速度
+    ay = am_y+ar_y+ae_y+av_y+al_y+a_graY;%1行n列，t时刻各行人粒子y方向的合加速度
     vx = vx+ax*dt; %计算下一时刻的x方向速度
     vy = vy+ay*dt; %计算下一时刻的y方向速度
     V = sqrt(vx.^2+vy.^2);
