@@ -2,38 +2,42 @@
 % 2021-02-24
 % 将行人期望速度保存至矩阵v0(1行n列，原版本为高速和低速两个标量)
 % 添加跟随加速度
+% 添加了参数condition来进行两个案例的选择，通过调整condition的数值来选择模拟15*15还是2*100
 
 clear;
-% %% 设置障碍物坐标、行人坐标和出口坐标
-% %15m×15m正方形空间，出口宽度3m
-% wall_x1=(15:-0.1:0);wall_y1=zeros(1,length(wall_x1));
-% wall_y2=(0:0.1:15);wall_x2=zeros(1,length(wall_y2));
-% wall_x3=(0:0.1:15);wall_y3=15*ones(1,length(wall_x3));
-% wall_y4=(15:-0.1:7.75);wall_x4=15*ones(1,length(wall_y4));
-% wall_y5=(6.25:-0.1:0);wall_x5=15*ones(1,length(wall_y5));
-% wall_x=[wall_x5 wall_x1 wall_x2 wall_x3 wall_x4];
-% wall_y=[wall_y5 wall_y1 wall_y2 wall_y3 wall_y4];
-% % 在空间内随机生成点用于模拟行人
-% % person_x=0.1+14.8*rand(1,100);
-% % person_y=0.1+14.8*rand(1,100);
-% load personInSquare.mat
-% exit_x=16;%出口x坐标
-% end_x = 15;%清除粒子
-% exit_y=7;%出口y坐标
-%% 初始化2X100m通道及行人
-wall_x1 = (-100:0.1:100);
-wall_y1 = zeros(1, length(wall_x1));
-wall_x2 = (-100:0.1:100);
-wall_y2 = 2 * ones(1, length(wall_x2));
-wall_x = [wall_x1 wall_x2];
-wall_y = [wall_y1 wall_y2];
-load 2X100wall.mat
-load personIni.mat
-exit_x=150;
-exit_y=1;
-end_x=100;
-
-
+%% 设置障碍物坐标、行人坐标和出口坐标
+condition = 2;
+switch condition
+    case 1
+        % 15m×15m正方形空间及行人，出口宽度3m
+        wall_x1=(15:-0.1:0);wall_y1=zeros(1,length(wall_x1));
+        wall_y2=(0:0.1:15);wall_x2=zeros(1,length(wall_y2));
+        wall_x3=(0:0.1:15);wall_y3=15*ones(1,length(wall_x3));
+        wall_y4=(15:-0.1:7.5);wall_x4=15*ones(1,length(wall_y4));
+        wall_y5=(6.5:-0.1:0);wall_x5=15*ones(1,length(wall_y5));
+        wall_x=[wall_x5 wall_x1 wall_x2 wall_x3 wall_x4];
+        wall_y=[wall_y5 wall_y1 wall_y2 wall_y3 wall_y4];
+        % 在空间内随机生成点用于模拟行人
+        % person_x=0.1+14.8*rand(1,100);
+        % person_y=0.1+14.8*rand(1,100);
+        load personInSquare.mat
+        exit_x=16;%出口x坐标
+        end_x = 15;%清除粒子
+        exit_y=7;%出口y坐标
+    case 2
+        % 2*100m通道及行人
+        wall_x1 = (-100:0.1:100);
+        wall_y1 = zeros(1, length(wall_x1));
+        wall_x2 = (-100:0.1:100);
+        wall_y2 = 2 * ones(1, length(wall_x2));
+        wall_x = [wall_x1 wall_x2];
+        wall_y = [wall_y1 wall_y2];
+        load 2X100wall.mat
+        load personIni.mat
+        exit_x=150;
+        exit_y=1;
+        end_x=100;
+end
 %% 计算坐标，绘制图像
 n=length(person_x);
 s=length(wall_x);
@@ -222,23 +226,24 @@ for t=0:dt:T
         end
     end
     
-%     % 15X15画图
-%     plot(person_x,person_y,'.',wall_x,wall_y,'LineWidth',2);
-%     hold on;
-%     plot(person_x,person_y,'.', 'MarkerSize', 10)
-%     axis([-1 18 -1 18]);%设置显示范围
-%     set(gcf,'position',[0,0,1000,1000]);
-    
-    % 2X100画图
-    
-    plot(wall_x1,wall_y1,'LineWidth',1,'Color','k');
-    hold on;
-    plot(wall_x2,wall_y2,'LineWidth',1,'Color','k');
-    hold on;
-    plot(person_x,person_y,'.', 'MarkerSize', 10)
-    axis([-1 101 -1 3]);%设置显示范围
-    set(gcf,'position',[0,500,2000,80]);
-
+    switch condition
+        case 1
+            % 15X15画图
+            plot(person_x,person_y,'.',wall_x,wall_y,'LineWidth',2);
+            hold on;
+            plot(person_x,person_y,'.', 'MarkerSize', 10)
+            axis([-1 18 -1 18]);%设置显示范围
+            set(gcf,'position',[0,0,1000,1000]);
+        case 2
+            % 2X100画图
+            plot(wall_x1,wall_y1,'LineWidth',1,'Color','k');
+            hold on;
+            plot(wall_x2,wall_y2,'LineWidth',1,'Color','k');
+            hold on;
+            plot(person_x,person_y,'.', 'MarkerSize', 10)
+            axis([-1 101 -1 3]);%设置显示范围
+            set(gcf,'position',[0,500,2000,80]);
+    end
     str_time=sprintf('疏散时间：%.2f',t);
     str_escape=sprintf('逃离人数：%.0f',sum_escape);
     text(5.5,-0.5,str_time);
