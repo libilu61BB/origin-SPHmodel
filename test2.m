@@ -3,7 +3,8 @@
 % 将行人期望速度保存至矩阵v0(1行n列，原版本为高速和低速两个标量)
 % 添加跟随加速度
 % 添加了参数condition来进行两个案例的选择，通过调整condition的数值来选择模拟15*15还是2*100
-
+% 2021-02-26
+% 在a_extru.m中，将行人粒子之间挤压力产生的加速度设置了上限，用参数ae_p2pMax表示，值为80
 clear;
 %% 设置障碍物坐标、行人坐标和出口坐标
 condition = 2;
@@ -185,6 +186,7 @@ for t=0:dt:T
         end
     end
     %% 计算行人的位置
+%     ax = max(10,am_x+ar_x+ae_x+av_x+al_x+a_graX);%1行n列，t时刻各行人粒子x方向的合加速度
     ax = am_x+ar_x+ae_x+av_x+al_x+a_graX;%1行n列，t时刻各行人粒子x方向的合加速度
     ay = am_y+ar_y+ae_y+av_y+al_y+a_graY;%1行n列，t时刻各行人粒子y方向的合加速度
     vx = vx+ax*dt; %计算下一时刻的x方向速度

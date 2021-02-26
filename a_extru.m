@@ -20,6 +20,7 @@ n=length(person_x);
 s=length(wall_x);
 ae_x=zeros(1,n);
 ae_y=zeros(1,n);
+ae_p2pMax = 80; %行人之间挤压力产生的加速度的最大值
 %% 判断输入参数是否合法
 if length(person_y)~=n
     error('行人的xy坐标数量不一致');
@@ -29,7 +30,7 @@ else
     end
 end
 %% 计算各粒子和压强
-avg_Radius=mean(Radius);
+% avg_Radius=mean(Radius);
 % Rho_p2p=m_person*(4/(pi*h1^8))*(h1^2-4*avg_Radius^2)^3+m_person*(4/(pi*h1^2)); %人与人之间的临界密度
 % Rho_p2w=m_person*(4/(pi*h1^8))*(h1^2-avg_Radius^2)^3+m_wall*(4/(pi*h1^2)); %人与障碍之间的临界密度
 % Rho_p2p=m_person*(4/(pi*h1^8))*(h1^2-4*avg_Radius^2)^3; %人与人之间的临界密度
@@ -56,6 +57,12 @@ for i=1:n
             ae_y(i)=ae_y(i)+abs_ae*(person_y(i)-person_y(j))/r; %将加速度分解到y轴
         end
     end
+    ae = sqrt(ae_x(i)^2+ae_y(i)^2);
+    if ae>ae_p2pMax %若挤压力加速度过大，则将其缩小
+        ae_x(i) = ae_x(i)*ae_p2pMax/ae;
+        ae_y(i) = ae_y(i)*ae_p2pMax/ae;
+    end
+    
     %---------------行人与障碍之间相互接触时挤压力产生的加速度---------------
     d=zeros(1,s);
     for j=1:s
