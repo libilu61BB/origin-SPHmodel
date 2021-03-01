@@ -5,6 +5,7 @@
 % 添加了参数condition来进行两个案例的选择，通过调整condition的数值来选择模拟15*15还是2*100
 % 2021-02-26
 % 在a_extru.m中，将行人粒子之间挤压力产生的加速度设置了上限，用参数ae_p2pMax表示，值为80
+
 clear;
 %% 设置障碍物坐标、行人坐标和出口坐标
 condition = 2;
@@ -227,7 +228,6 @@ for t=0:dt:T
             person_y(i)=nan;
         end
     end
-    
     switch condition
         case 1
             % 15X15画图
