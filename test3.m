@@ -7,12 +7,12 @@ switch condition
     case 1
         % 4*100m通道及双向行人 17710813276 6-1-301
         personNum = 50; %每队行人的数量
-        l_density = 1; %左侧行人的密度
-        r_density = 1; %右侧行人的密度
-        l_width = 10; %左侧行人初始化区域长度
-        r_width = 10; %右侧行人初始化区域长度
+        l_density = 0.5; %左侧行人的密度
+        r_density = 0.5; %右侧行人的密度
+        l_width = 20; %左侧行人初始化区域长度
+        r_width = 20; %右侧行人初始化区域长度
         [person_l_num, person_l_x, person_l_y, person_r_num, person_r_x, person_r_y] = personInitialization(l_density,r_density,l_width,4,r_width,4);
-        person_r_x = person_r_x + 90;
+        person_r_x = person_r_x + 80;
         person_x = [person_l_x person_r_x];
         person_y = [person_l_y person_r_y];
         wall_x1 = (0:0.1:100);
@@ -24,7 +24,7 @@ switch condition
 %         person_x = [linspace(1,1+0.5*personNum,personNum), linspace(99-0.5*personNum,99,personNum)];
 %         person_y = 3.4*rand(1,length(person_x))+0.3; %y∈[0.3 3.7]
         exit_x=[150*ones(1,person_l_num),-50*ones(1,person_r_num)];
-        exit_y = 4*ones(1,person_l_num + person_r_num);
+        exit_y = 2*ones(1,person_l_num + person_r_num);
         end_x = [100*ones(1,person_l_num),0*ones(1,person_r_num)];
 end
 %% 计算坐标，绘制图像
@@ -48,7 +48,7 @@ dt=0.02;
 
 %% 朗之万随机力相关设置
 P_r=0.5^dt;%加速度朗之万分量的时间权重
-A=5;%加速度朗之万分量的量级
+A=50;%加速度朗之万分量的量级
 al=A*rand(1,n);%行人加速度的朗之万随机分量，为服从高斯分布的随机数
 al_theta=2*pi*rand(1,n);%行人加速度朗之万随机分量的方向，为[0,2*pi]内的随机数
 al_x=al.*cos(al_theta);%行人加速度在x方向上的朗之万随机力分量
