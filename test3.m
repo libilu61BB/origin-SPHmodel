@@ -7,17 +7,25 @@ switch condition
     case 1
         % 4*100m通道及双向行人 17710813276 6-1-301
         personNum = 50; %每队行人的数量
+        l_density = 1; %左侧行人的密度
+        r_density = 1; %右侧行人的密度
+        l_width = 10; %左侧行人初始化区域长度
+        r_width = 10; %右侧行人初始化区域长度
+        [person_l_num, person_l_x, person_l_y, person_r_num, person_r_x, person_r_y] = personInitialization(l_density,r_density,l_width,4,r_width,4);
+        person_r_x = person_r_x + 90;
+        person_x = [person_l_x person_r_x];
+        person_y = [person_l_y person_r_y];
         wall_x1 = (0:0.1:100);
         wall_y1 = zeros(1, length(wall_x1));
         wall_x2 = (0:0.1:100);
         wall_y2 = 4 * ones(1, length(wall_x2));
         wall_x = [wall_x1, wall_x2];
         wall_y = [wall_y1, wall_y2];
-        person_x = [linspace(1,1+0.5*personNum,personNum), linspace(99-0.5*personNum,99,personNum)];
-        person_y = 3.4*rand(1,length(person_x))+0.3; %y∈[0.3 3.7]
-        exit_x=[150*ones(1,personNum),-50*ones(1,personNum)];
-        exit_y = 4*ones(1,personNum*2);
-        end_x = [100*ones(1,personNum),0*ones(1,personNum)];
+%         person_x = [linspace(1,1+0.5*personNum,personNum), linspace(99-0.5*personNum,99,personNum)];
+%         person_y = 3.4*rand(1,length(person_x))+0.3; %y∈[0.3 3.7]
+        exit_x=[150*ones(1,person_l_num),-50*ones(1,person_r_num)];
+        exit_y = 4*ones(1,person_l_num + person_r_num);
+        end_x = [100*ones(1,person_l_num),0*ones(1,person_r_num)];
 end
 %% 计算坐标，绘制图像
 n=length(person_x);
@@ -204,8 +212,8 @@ for t=0:dt:T
             hold on;
             plot(wall_x2,wall_y2,'LineWidth',1,'Color','k');
             hold on;
-            plot(person_x(1:personNum),person_y(1:personNum),'.r', 'MarkerSize', 10)
-            plot(person_x(personNum+1:n),person_y(personNum+1:n),'.b', 'MarkerSize', 10)
+            plot(person_x(1:person_l_num),person_y(1:person_l_num),'.r', 'MarkerSize', 10)
+            plot(person_x(person_l_num+1:end),person_y(person_l_num+1:end),'.b', 'MarkerSize', 10)
             axis([-1 101 -1 5]);%设置显示范围
             set(gcf,'position',[0,500,2000,160]);
     end
