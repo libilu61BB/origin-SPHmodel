@@ -1,4 +1,7 @@
 %% 更新日志
+% 2021-03-02 
+% 添加了通道两侧行人根据密度的初始化机制
+% 添加了对中间区域行人的速度密度进行统计的模块
 
 clear;
 %% 设置障碍物坐标、行人坐标和出口坐标
@@ -7,12 +10,12 @@ switch condition
     case 1
         % 4*100m通道及双向行人 17710813276 6-1-301
         personNum = 50; %每队行人的数量
-        l_density = 0.5; %左侧行人的密度
-        r_density = 0.5; %右侧行人的密度
-        l_width = 20; %左侧行人初始化区域长度
-        r_width = 20; %右侧行人初始化区域长度
+        l_density = 1; %左侧行人的密度
+        r_density = 1; %右侧行人的密度
+        l_width = 40; %左侧行人初始化区域长度
+        r_width = 40; %右侧行人初始化区域长度
         [person_l_num, person_l_x, person_l_y, person_r_num, person_r_x, person_r_y] = personInitialization(l_density,r_density,l_width,4,r_width,4);
-        person_r_x = person_r_x + 80;
+        person_r_x = person_r_x + 60;
         person_x = [person_l_x person_r_x];
         person_y = [person_l_y person_r_y];
         wall_x1 = (0:0.1:100);
@@ -48,12 +51,19 @@ dt=0.02;
 
 %% 朗之万随机力相关设置
 P_r=0.5^dt;%加速度朗之万分量的时间权重
-A=50;%加速度朗之万分量的量级
+P_r = 0.5;%随便设一个试试
+A=10;%加速度朗之万分量的量级
 al=A*rand(1,n);%行人加速度的朗之万随机分量，为服从高斯分布的随机数
 al_theta=2*pi*rand(1,n);%行人加速度朗之万随机分量的方向，为[0,2*pi]内的随机数
 al_x=al.*cos(al_theta);%行人加速度在x方向上的朗之万随机力分量
 al_y=al.*sin(al_theta);%行人加速度在y方向上的朗之万随机力分量
 
+%% 速度-密度统计设置
+count = 0; %速度密度统计计数
+v_sum = 0; %平均速度和
+density_sum = 0; %平均密度和
+v_blue = [];
+density_area = [];
 
 %% 模拟循环
 for t=0:dt:T
@@ -187,16 +197,26 @@ for t=0:dt:T
     person_x = person_x+vx*dt; %计算x方向的位移
     person_y = person_y+vy*dt; %计算y方向的位移
     
-    %% 计算行人粒子的间距
-    [minP2P, minP2W] = minDistance(person_x,person_y,wall_x,wall_y);
+    %% 统计行人速度-密度图
     
-%     if minP2P < 0.5
-%         fprintf("person min < 0.5");
-%     end
-%     if minP2W < 0.3
-%         fprintf("wall min < 0.3");
-%     end
+    index = find(person_x>49 & person_x<51); %寻找在x=46~52区间范围内的粒子
+    index_blue = find(index>person_l_num); %在x=46~52区间范围内的蓝色粒子
+    v_mean = mean(vx(index(index_blue))); %计算蓝色粒子们的平均前进速度
+    if v_mean <= 0
+        count = count+1; %进行速度-密度统计
+        v_sum = v_sum+v_mean; %几个步长内平均速度和
+        density_mean = length(index) / (2*4); %计算区域密度
+        density_sum = density_sum+density_mean; %几个步长内区域密度之和
+    end
+    if count == 20
+        v_blue = [v_blue, v_sum/count];
+        density_area = [density_area, density_sum/count];
+        count = 0;
+        v_sum = 0;
+        density_sum = 0;
+    end
 
+    
     %% 绘制图像
     for i=1:n %统计逃离人数
         if (person_x(i)-end_x(i))^2<=0.001
