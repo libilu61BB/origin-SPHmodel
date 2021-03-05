@@ -349,7 +349,8 @@ for t=0:dt:T
             hold on;
             plot(wall_x2,wall_y2,'LineWidth',1,'Color','k');
             hold on;
-            plot(person_x,person_y,'.r', 'MarkerSize', 10)
+            plot(person_x(1:50),person_y(1:50),'.r', 'MarkerSize', 10)
+            plot(person_x(51:100),person_y(51:100),'.b', 'MarkerSize', 10)
             axis([-1 101 -1 5]);%…Ë÷√œ‘ æ∑∂Œß
             set(gcf,'position',[0,500,2000,160]);
     end
