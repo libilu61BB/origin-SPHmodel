@@ -293,18 +293,7 @@ for t=0:dt:T
     V = sqrt(vx.^2+vy.^2);
     index = find(V>v0); %找出超速粒子的索引
     vx(index) = vx(index).*v0(index)./V(index);
-    vy(index) = vy(index).*v0(index)./V(index);
-    
-%     V1 = V(1:floor(n/2));%前一半的行人的合速度，floor为向下取整
-%     V2 = V(floor(n/2)+1:n);%后一半行人的合速度
-%     index_V1 = find(V1>va);%找出超速的低速行人，储存矩阵的索引
-%     index_V2 = find(V2>vb);%找出超速的高速行人，储存矩阵的索引
-%     
-%     vx(index_V1) = vx(index_V1).*va./V1(index_V1);%假设前一半行人为低速行人
-%     vy(index_V1) = vy(index_V1).*va./V1(index_V1);
-%     vx(index_V2+floor(n/2)) = vx(index_V2+floor(n/2)).*vb./V2(index_V2);%假设后一半行人为高速行人
-%     vy(index_V2+floor(n/2)) = vy(index_V2+floor(n/2)).*vb./V2(index_V2); 
-    
+    vy(index) = vy(index).*v0(index)./V(index); 
     person_x = person_x+vx*dt; %计算x方向的位移
     person_y = person_y+vy*dt; %计算y方向的位移
     

@@ -1,17 +1,15 @@
-%% 
-% 2021-03-02 
-% 添加了通道两侧行人根据密度的初始化机制
-% 添加了对中间区域行人的速度密度进行统计的模块
-%2021-03-04
-%添加超车行为
-clear;
+%% new-follow-model
+% 尝试新的跟随模型
+%% 更新日志
 
+
+clear;
 %% 设置障碍物坐标、行人坐标和出口坐标
 condition = 1;
 switch condition
     case 1
         % 4*100m通道及双向行人 17710813276 6-1-301
-%         personNum = 50; %每队行人的数量
+        personNum = 50; %每队行人的数量
         l_density = 1; %左侧行人的密度
         r_density = 1; %右侧行人的密度
         l_width = 40; %左侧行人初始化区域长度
@@ -41,7 +39,7 @@ m_person=70;%行人的质量
 m_wall=500;%障碍物的质量
 % va=1.2; %低速行人的期望速度值
 % vb=1.8; %高速行人的期望速度值
-v0 = [1.2*ones(1,n/4),1.8*ones(1,n/4),1.2*ones(1,n/4),1.8*ones(1,n/4)]; %定义行人的期望速度，前一半为低速行人，后一半为高速行人,floor为向下取整
+v0 = [1.34*ones(1,floor(n/2)),1.34*ones(1,n-floor(n/2))]; %定义行人的期望速度，前一半为低速行人，后一半为高速行人,floor为向下取整
 u=2; %粘度，用于计算粒子之间摩擦力产生的加速度
 vx=zeros(1,n);%行人速度在x方向上的分量，初始时刻为0
 vy=zeros(1,n);%行人速度在y方向上的分量，初始时刻为0
@@ -50,10 +48,12 @@ sum_escape=0;%统计已疏散的人数
 P=1;%熟悉逃生路线的行人比例
 P_f=1;%从众程度
 dt=0.02;
+% follow_A = 8;%跟随加速度的量级
+tau = 0.2;%行人加速的特征时间
 
 %% 朗之万随机力相关设置
 P_r=0.5^dt;%加速度朗之万分量的时间权重
-% P_r = 0.5;%随便设一个试试
+P_r = 0.5;%随便设一个试试
 A=10;%加速度朗之万分量的量级
 al=A*rand(1,n);%行人加速度的朗之万随机分量，为服从高斯分布的随机数
 al_theta=2*pi*rand(1,n);%行人加速度朗之万随机分量的方向，为[0,2*pi]内的随机数
@@ -139,8 +139,8 @@ for t=0:dt:T
         end
     end
     for i=1:n
-        %         am_x(i)=(v0*e_x(i)-vx(i))/dt;
-        %         am_y(i)=(v0*e_y(i)-vy(i))/dt;
+%         am_x(i)=(v0*e_x(i)-vx(i))/dt;
+%         am_y(i)=(v0*e_y(i)-vy(i))/dt;
         temp_am_x=(v0(i)*e_x(i)-vx(i))/dt;
         if temp_am_x>=0
             am_x(i)=min((v0(i)*e_x(i)-vx(i))/dt,20);
@@ -160,6 +160,7 @@ for t=0:dt:T
     al_x=P_r*al_x + (1-P_r)*yita.*cos(theta);%行人加速度在x方向上的朗之万随机力分量
     al_y=P_r*al_y + (1-P_r)*yita.*sin(theta);%行人加速度在y方向上的朗之万随机力分量
     %% 计算行人跟随行为产生的加速度
+    % 根据引力模型的跟随行为
     a_graX = zeros(1,n); %初始化X跟随加速度
     a_graY = zeros(1,n); %初始化Y跟随加速度
     for i=1:n
@@ -169,110 +170,51 @@ for t=0:dt:T
             end
             Dij = [person_x(j)-person_x(i),person_y(j)-person_y(i)]; %由i指向j的位置向量Dij
             Vi = [vx(i),vy(i)]; %粒子i的速度向量Vi
-            Dij_abs = sqrt(sum(Dij.^2)); %向量ij的模，相当于两粒子的距离
-            if Dij_abs<=2 && sum(Dij.*Vi)>0 %当距离小于等于2且j位于i的前方时才进行后续计算
-                ei = [exit_x(i)-person_x(i),exit_y(i)-person_y(i)]/sqrt(sum([exit_x(i)-person_x(i),exit_y(i)-person_y(i)].^2)); %由粒子i指向出口的单位向量
-                Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
-                Bij_3 = max(0,sum(ei.*Vj)/sqrt(sum(Vj.^2)));
-                if Bij_3==0
-                    continue;
-                else
-                    Bij_4 = min(sqrt(sum(Vj.^2))/v0(i),1);
-                    Bij_5 = min(exp(1)^((Radius(i)+Radius(j))-Dij_abs),1);
-                    a_graX(i) = a_graX(i)+0.4*v0(i)*Bij_3*Bij_4*Bij_5*Dij(1)/Dij_abs; %计算X跟随加速度
-                    a_graY(i) = a_graY(i)+0.4*v0(i)*Bij_3*Bij_4*Bij_5*Dij(2)/Dij_abs; %计算Y跟随加速度
-                end
+            Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
+            L = sqrt(sum(Dij.^2)); %向量ij的模，相当于两粒子的距离
+            if L<5 && sum(Dij.*Vi)>0 %当ij之间距离小于5且j位于i的前方时才有跟随行为，进行后续计算
+                vj = sqrt(sum(Vj .^ 2)); %粒子j速度向量vj的模
+                vi = sqrt(sum(Vi .^ 2)); %粒子i速度向量vi的模
+                ej = Vj / vj; %粒子j速度方向向量ej
+                ei0 = [exit_x(i)-person_x(i),exit_y(i)-person_y(i)]/sqrt(sum([exit_x(i)-person_x(i),exit_y(i)-person_y(i)].^2)); %由粒子i指向出口的单位向量
+                a_graX(i) = a_graX(i) + v0(i)/tau * (vj-vi) * sum(ej .* ei0) / (L/(Radius(i)+Radius(j)))^2 * (person_x(j)-person_x(i))/L; %计算X跟随加速度
+                a_graY(i) = a_graY(i) + v0(i)/tau * (vj-vi) * sum(ej .* ei0) / (L/(Radius(i)+Radius(j)))^2 * (person_y(j)-person_y(i))/L; %计算Y跟随加速度
             end
         end
     end
     
-    %% 计算超车行为产生的加速度
-    Pl = 0; %左侧区域的得分
-    Pm = 0; %中间区域的得分
-    Pr = 0; %右侧区域的得分
-    w_p = 0.3; %区域得分权重
-    w_sa = 0.4; %直线前进的权重
-    w_rl = 0.3; %左右超车或避让的权重
-    a_pass_abs = 10; %超车行为产生的加速度的大小
-    a_pass_x = zeros(1,n);
-    a_pass_y = zeros(1,n);
-    d_sa = 3;
-    C_rl = 1.5;
-    C_ot = 1.25;
-    Kin = -1;
-    h = 4;
-    for i=1:n
-        Vi = [vx(i),vy(i)]; %粒子i的速度向量
-        Vi_abs = sqrt(sum(Vi.^2));
-        if Vi_abs==0
-            continue
-        end
-        for j=1:n
-            if i==j
-                continue
-            end
-            Dij = [person_x(j)-person_x(i), person_y(j)-person_y(i)]; %由i指向j的位置向量Dij
-            Dij_abs = sqrt(sum(Dij.^2));
-            if Dij_abs<=2
-                VxD = Vi(1)*Dij(2)-Vi(2)*Dij(1); %Vi与Dij的叉乘
-                switch (VxD>=0)
-                    case 1 %VxD>=0说明Dij在Vi的逆时针方向，即j在i的左侧
-                        cos_VD = sum(Dij.*Vi)/(Dij_abs*Vi_abs);
-                        if cos_VD<0.5 %夹角大于60°不计算
-                            continue
-                        else
-                            if cos_VD<(sqrt(3)/2) %夹角在30~60之间，属于Pl区域
-                                Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
-                                Ui = [exit_x(i)-person_x(i),exit_y(i)-person_y(i)]/sqrt(sum([exit_x(i)-person_x(i),exit_y(i)-person_y(i)].^2))*v0(i); %粒子i的期望速度向量
-                                Pl = Pl + (Kin*Vi_abs^h*abs(sum((Vj-Vi).*Ui))-C_ot)/max(0.2,Dij_abs-Radius(i)-Radius(j));
-                            else %夹角在0~30之间，同时属于Pl和Pm区域
-                                Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
-                                Ui = [exit_x(i)-person_x(i),exit_y(i)-person_y(i)]/sqrt(sum([exit_x(i)-person_x(i),exit_y(i)-person_y(i)].^2))*v0(i); %粒子i的期望速度向量
-                                Pl = Pl + (Kin*Vi_abs^h*abs(sum((Vj-Vi).*Ui))-C_ot)/max(0.2,Dij_abs-Radius(i)-Radius(j));
-                                Pm = Pm + (Kin*Vi_abs^h*abs(sum((Vj-Vi).*Ui))-C_ot)/max(0.2,Dij_abs-Radius(i)-Radius(j));
-                            end
-                        end
-                    case 0 %VxD<0说明Dij在Vi的顺时针方向，即j在i的右侧
-                        cos_VD = sum(Dij.*Vi)/(Dij_abs*Vi_abs);
-                        if cos_VD<0.5 %夹角大于60°不计算
-                            continue
-                        else
-                            if cos_VD<(sqrt(3)/2) %夹角在30~60之间，属于Pr区域
-                                Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
-                                Ui = [exit_x(i)-person_x(i),exit_y(i)-person_y(i)]/sqrt(sum([exit_x(i)-person_x(i),exit_y(i)-person_y(i)].^2))*v0(i); %粒子i的期望速度向量
-                                Pr = Pr + (Kin*Vi_abs^h*abs(sum((Vj-Vi).*Ui))-C_ot)/max(0.2,Dij_abs-Radius(i)-Radius(j));
-                            else %夹角在0~30之间，同时属于Pr和Pm区域
-                                Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
-                                Ui = [exit_x(i)-person_x(i),exit_y(i)-person_y(i)]/sqrt(sum([exit_x(i)-person_x(i),exit_y(i)-person_y(i)].^2))*v0(i); %粒子i的期望速度向量
-                                Pr = Pr + (Kin*Vi_abs^h*abs(sum((Vj-Vi).*Ui))-C_ot)/max(0.2,Dij_abs-Radius(i)-Radius(j));
-                                Pm = Pm + (Kin*Vi_abs^h*abs(sum((Vj-Vi).*Ui))-C_ot)/max(0.2,Dij_abs-Radius(i)-Radius(j));
-                            end
-                        end
-                end
-            end
-        end
-        S_l = w_p*Pl+w_rl*(C_rl-Vi_abs)*(-1);
-        S_m = w_p*Pm+w_sa*d_sa*Vi_abs;
-        S_r = w_p*Pr+w_rl*(C_rl-Vi_abs);
-        index = find([S_l,S_m,S_r]==max([S_l,S_m,S_r]));
-        Vi_0 = Vi/Vi_abs; %粒子i当前速度的单位向量
-        switch index
-            case 1 %最大值为S_l，产生的超车加速度方向为Vi逆时针旋转30°
-                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(30)-Vi_0(2)*sind(30));
-                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(30)+Vi_0(2)*cosd(30));
-            case 2 %最大值为S_m，无超车行为
-                continue
-            case 3 %最大值为S_r，产生的超车加速度方向为Vi顺时针旋转30°
-                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(-30)-Vi_0(2)*sind(-30));
-                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(-30)+Vi_0(2)*cosd(-30));
-        end
-    end
     
+    
+%     % 文献中的跟随行为模型
+%     a_graX = zeros(1,n); %初始化X跟随加速度
+%     a_graY = zeros(1,n); %初始化Y跟随加速度
+%     for i=1:n
+%         for j=1:n
+%             if i==j
+%                 continue;
+%             end
+%             Dij = [person_x(j)-person_x(i),person_y(j)-person_y(i)]; %由i指向j的位置向量Dij
+%             Vi = [vx(i),vy(i)]; %粒子i的速度向量Vi
+%             L = sqrt(sum(Dij.^2)); %向量ij的模，相当于两粒子的距离
+%             if L<=2 && sum(Dij.*Vi)>0 %当距离小于等于2且j位于i的前方时才进行后续计算
+%                 ei = [exit_x(i)-person_x(i),exit_y(i)-person_y(i)]/sqrt(sum([exit_x(i)-person_x(i),exit_y(i)-person_y(i)].^2)); %由粒子i指向出口的单位向量
+%                 Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
+%                 Bij_3 = max(0,sum(ei.*Vj)/sqrt(sum(Vj.^2)));
+%                 if Bij_3==0
+%                     continue;
+%                 else
+%                     Bij_4 = min(sqrt(sum(Vj.^2))/v0(i),1);
+%                     Bij_5 = min(exp(1)^((Radius(i)+Radius(j))-L),1);
+%                     a_graX(i) = a_graX(i)+0.4*v0(i)*Bij_3*Bij_4*Bij_5*Dij(1)/L; %计算X跟随加速度
+%                     a_graY(i) = a_graY(i)+0.4*v0(i)*Bij_3*Bij_4*Bij_5*Dij(2)/L; %计算Y跟随加速度
+%                 end         
+%             end
+%         end
+%     end
     %% 计算行人的位置
-    ax = am_x+ar_x+ae_x+av_x+al_x+a_graX+a_pass_x;%1行n列，t时刻各行人粒子x方向的合加速度
-    ay = am_y+ar_y+ae_y+av_y+al_y+a_graY+a_pass_y;%1行n列，t时刻各行人粒子y方向的合加速度
-    %     ax = am_x+ar_x+ae_x+av_x+al_x+a_graX;%1行n列，t时刻各行人粒子x方向的合加速度
-    %     ay = am_y+ar_y+ae_y+av_y+al_y+a_graY;%1行n列，t时刻各行人粒子y方向的合加速度
+%     ax = max(10,am_x+ar_x+ae_x+av_x+al_x+a_graX);%1行n列，t时刻各行人粒子x方向的合加速度
+    ax = am_x+ar_x+ae_x+av_x+al_x+a_graX;%1行n列，t时刻各行人粒子x方向的合加速度
+    ay = am_y+ar_y+ae_y+av_y+al_y+a_graY;%1行n列，t时刻各行人粒子y方向的合加速度
     vx = vx+ax*dt; %计算下一时刻的x方向速度
     vy = vy+ay*dt; %计算下一时刻的y方向速度
     V = sqrt(vx.^2+vy.^2);
@@ -284,6 +226,7 @@ for t=0:dt:T
     person_y = person_y+vy*dt; %计算y方向的位移
     
     %% 统计行人速度-密度图
+    
     index = find(person_x>49 & person_x<51); %寻找在x=46~52区间范围内的粒子
     index_blue = find(index>person_l_num); %在x=46~52区间范围内的蓝色粒子
     v_mean = mean(vx(index(index_blue))); %计算蓝色粒子们的平均前进速度
@@ -300,6 +243,7 @@ for t=0:dt:T
         v_sum = 0;
         density_sum = 0;
     end
+
     
     %% 绘制图像
     for i=1:n %统计逃离人数
@@ -311,7 +255,7 @@ for t=0:dt:T
     end
     switch condition
         case 1
-            % 4X100画图
+            % 2X100画图
             plot(wall_x1,wall_y1,'LineWidth',1,'Color','k');
             hold on;
             plot(wall_x2,wall_y2,'LineWidth',1,'Color','k');
@@ -319,9 +263,7 @@ for t=0:dt:T
             plot(person_x(1:person_l_num),person_y(1:person_l_num),'.r', 'MarkerSize', 10)
             plot(person_x(person_l_num+1:end),person_y(person_l_num+1:end),'.b', 'MarkerSize', 10)
             axis([-1 101 -1 5]);%设置显示范围
-            if t==0 %只在第1次循环设置图窗位置和大小
-                set(gcf,'position',[0,500,2000,160]);
-            end
+            set(gcf,'position',[0,500,2000,160]);
     end
     str_time=sprintf('疏散时间：%.2f',t);
     str_escape=sprintf('逃离人数：%.0f',sum_escape);
@@ -330,12 +272,13 @@ for t=0:dt:T
     axis on;
     hold off;
     pause(0.001);
-    if sum_escape>=n
-        break;
-    end
+        if sum_escape>=n
+            break;
+        end
 end
-
-
-
-
-
+        
+        
+        
+    
+                
+                
