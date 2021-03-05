@@ -227,7 +227,7 @@ for t=0:dt:T
             end
             Dij = [person_x(j)-person_x(i), person_y(j)-person_y(i)]; %由i指向j的位置向量Dij
             Dij_abs = sqrt(sum(Dij.^2));
-            if Dij_abs<=2
+            if Dij_abs<=4
                 VxD = Vi(1)*Dij(2)-Vi(2)*Dij(1); %Vi与Dij的叉乘
                 switch (VxD>=0)
                     case 1 %VxD>=0说明Dij在Vi的逆时针方向，即j在i的左侧
