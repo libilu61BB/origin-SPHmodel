@@ -14,8 +14,8 @@ switch condition
 %         personNum = 50; %每队行人的数量
         l_density = 1; %左侧行人的密度
         r_density = 1; %右侧行人的密度
-        l_width = 40; %左侧行人初始化区域长度
-        r_width = 40; %右侧行人初始化区域长度
+        l_width = 10; %左侧行人初始化区域长度
+        r_width = 10; %右侧行人初始化区域长度
         [person_l_num, person_l_x, person_l_y, person_r_num, person_r_x, person_r_y] = personInitialization(l_density,r_density,l_width,4,r_width,4);
         person_r_x = person_r_x + 60;
         person_x = [person_l_x person_r_x];
@@ -193,6 +193,7 @@ for t=0:dt:T
     w_p = 0.3; %区域得分权重
     w_sa = 0.4; %直线前进的权重
     w_rl = 0.3; %左右超车或避让的权重
+    search_R = 10; %计算区域得分时的半径
     a_pass_abs = 10; %超车行为产生的加速度的大小
     a_pass_x = zeros(1,n);
     a_pass_y = zeros(1,n);
@@ -213,7 +214,7 @@ for t=0:dt:T
             end
             Dij = [person_x(j)-person_x(i), person_y(j)-person_y(i)]; %由i指向j的位置向量Dij
             Dij_abs = sqrt(sum(Dij.^2));
-            if Dij_abs<=4
+            if Dij_abs<=search_R
                 VxD = Vi(1)*Dij(2)-Vi(2)*Dij(1); %Vi与Dij的叉乘
                 switch (VxD>=0)
                     case 1 %VxD>=0说明Dij在Vi的逆时针方向，即j在i的左侧
@@ -257,14 +258,14 @@ for t=0:dt:T
         index = find([S_l,S_m,S_r]==max([S_l,S_m,S_r]));
         Vi_0 = Vi/Vi_abs; %粒子i当前速度的单位向量
         switch index
-            case 1 %最大值为S_l，产生的超车加速度方向为Vi逆时针旋转30°
-                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(30)-Vi_0(2)*sind(30));
-                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(30)+Vi_0(2)*cosd(30));
+            case 1 %最大值为S_l，产生的超车加速度方向为Vi逆时针旋转90°
+                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(90)-Vi_0(2)*sind(90));
+                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(90)+Vi_0(2)*cosd(90));
             case 2 %最大值为S_m，无超车行为
                 continue
-            case 3 %最大值为S_r，产生的超车加速度方向为Vi顺时针旋转30°
-                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(-30)-Vi_0(2)*sind(-30));
-                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(-30)+Vi_0(2)*cosd(-30));
+            case 3 %最大值为S_r，产生的超车加速度方向为Vi顺时针旋转90°
+                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(-90)-Vi_0(2)*sind(-90));
+                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(-90)+Vi_0(2)*cosd(-90));
         end
     end
     

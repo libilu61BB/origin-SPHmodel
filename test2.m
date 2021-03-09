@@ -8,9 +8,9 @@
 
 clear;
 %% 设置障碍物坐标、行人坐标和出口坐标
-condition = 3;
+condition = 1;
 switch condition
-    case 2
+    case 1
         % 15m×15m正方形空间及行人，出口宽度3m
         wall_x1=(15:-0.1:0);wall_y1=zeros(1,length(wall_x1));
         wall_y2=(0:0.1:15);wall_x2=zeros(1,length(wall_y2));
@@ -23,9 +23,11 @@ switch condition
         % person_x=0.1+14.8*rand(1,100);
         % person_y=0.1+14.8*rand(1,100);
         load personInSquare.mat
-        exit_x=16;%出口x坐标
-        end_x = 15;%清除粒子
-        exit_y=7;%出口y坐标
+        n=length(person_x);
+        s=length(wall_x);
+        exit_x=16*ones(1,n);%出口x坐标
+        end_x = 15*ones(1,n);%清除粒子
+        exit_y=7*ones(1,n);%出口y坐标
     case 2
         % 2*100m通道及行人
         wall_x1 = (-100:0.1:100);
@@ -36,9 +38,11 @@ switch condition
         wall_y = [wall_y1 wall_y2];
         load 2X100wall.mat
         load personIni.mat
-        exit_x=150;
-        exit_y=1;
-        end_x=100;
+        n=length(person_x);
+        s=length(wall_x);
+        exit_x=150*ones(1,n);
+        exit_y=1*ones(1,n);
+        end_x=100*ones(1,n);
     case 3
         % 4*100m通道及单向行人
         wall_x1 = (0:0.1:100);
@@ -49,9 +53,11 @@ switch condition
         wall_y = [wall_y1, wall_y2];
         person_x = linspace(1,1+0.5*100,100);
         person_y = 3.4*rand(1,length(person_x))+0.3; %y∈[0.3 3.7]
-        exit_x=150*ones(1,100);
-        exit_y = 2*ones(1,100);
-        end_x = 100*ones(1,100);
+        n=length(person_x);
+        s=length(wall_x);
+        exit_x=150*ones(1,n);
+        exit_y = 2*ones(1,n);
+        end_x = 100*ones(1,n);
 end
 %% 计算坐标，绘制图像
 n=length(person_x);
