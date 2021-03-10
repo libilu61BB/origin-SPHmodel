@@ -45,7 +45,7 @@ density_area = [];
 %% 模拟循环
 for t=0:dt:T
     %% 随机生成行人粒子
-    if mod(t,t_person)==0 %每隔0.5s随机生成一次
+    if mod(t,t_person)==0 %每隔固定的时间随机生成一次
         person_x_temp = [-0.5-5*rand 50+5*rand]; %在左右两侧各生成一个粒子
         person_y_temp = [0.3+3.4*rand 0.3+3.4*rand];
         person_x = [person_x person_x_temp];
@@ -252,16 +252,16 @@ for t=0:dt:T
         S_l = w_p*Pl+w_rl*(C_rl-Vi_abs)*(-1);
         S_m = w_p*Pm+w_sa*d_sa*Vi_abs;
         S_r = w_p*Pr+w_rl*(C_rl-Vi_abs);
-        index = find([S_l,S_m,S_r]==max([S_l,S_m,S_r]));
+        [~,index] = max([S_l,S_m,S_r]); %获取最大值的索引
         Vi_0 = Vi/Vi_abs; %粒子i当前速度的单位向量
         a = 30; %转弯角度
         switch index
-            case 1 %最大值为S_l，产生的超车加速度方向为Vi逆时针旋转90°
+            case 1 %最大值为S_l，产生的超车加速度方向为Vi逆时针旋转a°
                 a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(a)-Vi_0(2)*sind(a));
                 a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(a)+Vi_0(2)*cosd(a));
             case 2 %最大值为S_m，无超车行为
                 continue
-            case 3 %最大值为S_r，产生的超车加速度方向为Vi顺时针旋转90°
+            case 3 %最大值为S_r，产生的超车加速度方向为Vi顺时针旋转a°
                 a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(-a)-Vi_0(2)*sind(-a));
                 a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(-a)+Vi_0(2)*cosd(-a));
         end
@@ -270,15 +270,12 @@ for t=0:dt:T
     %% 计算行人的位置
     ax = am_x+ar_x+ae_x+av_x+al_x+a_graX+a_pass_x;%1行n列，t时刻各行人粒子x方向的合加速度
     ay = am_y+ar_y+ae_y+av_y+al_y+a_graY+a_pass_y;%1行n列，t时刻各行人粒子y方向的合加速度
-    %     ax = am_x+ar_x+ae_x+av_x+al_x+a_graX;%1行n列，t时刻各行人粒子x方向的合加速度
-    %     ay = am_y+ar_y+ae_y+av_y+al_y+a_graY;%1行n列，t时刻各行人粒子y方向的合加速度
     vx = vx+ax*dt; %计算下一时刻的x方向速度
     vy = vy+ay*dt; %计算下一时刻的y方向速度
     V = sqrt(vx.^2+vy.^2);
     index = find(V>v0); %找出超速粒子的索引
     vx(index) = vx(index).*v0(index)./V(index);
-    vy(index) = vy(index).*v0(index)./V(index);
-    
+    vy(index) = vy(index).*v0(index)./V(index);   
     person_x = person_x+vx*dt; %计算x方向的位移
     person_y = person_y+vy*dt; %计算y方向的位移
     
@@ -306,13 +303,6 @@ for t=0:dt:T
             sum_escape = sum_escape+1;
             person_x(i) = nan;
             person_y(i) = nan;
-%             exit_x(i) = nan;
-%             exit_y(i) = nan;
-%             end_x(i) = nan;
-%             vx(i) = nan;
-%             vy(i) = nan;
-%             v0(i) = nan;
-%             Radius(i) = nan;
         end
     end
     %% 绘制图像
@@ -343,15 +333,17 @@ for t=0:dt:T
     pause(0.001);
     %% 删除被抹掉信息的粒子
     index_del = find(isnan(person_x)==1);
-    person_x(index_del) = [];
-    person_y(index_del) = [];
-    exit_x(index_del) = [];
-    exit_y(index_del) = [];
-    end_x(index_del) = [];
-    vx(index_del) = [];
-    vy(index_del) = [];
-    v0(index_del) = [];
-    Radius(index_del) = [];
+    if ~isempty(index_del)
+        person_x(index_del) = [];
+        person_y(index_del) = [];
+        exit_x(index_del) = [];
+        exit_y(index_del) = [];
+        end_x(index_del) = [];
+        vx(index_del) = [];
+        vy(index_del) = [];
+        v0(index_del) = [];
+        Radius(index_del) = [];
+    end
 end
 
 
