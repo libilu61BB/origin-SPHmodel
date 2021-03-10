@@ -170,7 +170,7 @@ for t=0:dt:T
             Vi = [vx(i),vy(i)]; %粒子i的速度向量Vi
             Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
             L = sqrt(sum(Dij.^2)); %向量ij的模，相当于两粒子的距离
-            if L<5 && sum(Dij.*Vi)>0 %当ij之间距离小于5且j位于i的前方时才有跟随行为，进行后续计算
+            if L<5 && sum(Dij.*Vi)>0 %当ij之间距离小于5且j位于i的前方-时才有跟随行为，进行后续计算
                 vj = sqrt(sum(Vj .^ 2)); %粒子j速度向量vj的模
                 vi = sqrt(sum(Vi .^ 2)); %粒子i速度向量vi的模
                 ej = Vj / vj; %粒子j速度方向向量ej
@@ -179,10 +179,7 @@ for t=0:dt:T
                 a_graY(i) = a_graY(i) + v0(i)/tau * (vj-vi) * sum(ej .* ei0) / (L/(Radius(i)+Radius(j)))^2 * (person_y(j)-person_y(i))/L; %计算Y跟随加速度
             end
         end
-    end
-    
-    
-    
+    end  
 %     % 文献中的跟随行为模型
 %     a_graX = zeros(1,n); %初始化X跟随加速度
 %     a_graY = zeros(1,n); %初始化Y跟随加速度

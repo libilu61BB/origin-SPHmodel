@@ -21,6 +21,20 @@ P_f=1; %从众程度
 dt=0.02; %时间步长
 t_person = 0.5; %生成粒子的时间间隔
 
+% 超车行为相关参数设置
+w_p = 0.3; %区域得分权重
+w_sa = 0.4; %直线前进的权重
+w_rl = 0.3; %左右超车或避让的权重
+search_R = 5; %计算区域得分时的搜索半径
+a_pass_abs = 30; %超车行为产生的加速度的大小
+d_sa = 3;
+C_rl = 1.5;
+C_ot = 1.25;
+Kin = -1;
+h = 4;
+a = 30; %转弯角度
+
+
 person_x = []; %行人的x坐标
 person_y = []; %行人的y坐标
 exit_x = []; %出口的x坐标
@@ -186,19 +200,9 @@ for t=0:dt:T
     %% 计算超车行为产生的加速度
     Pl = 0; %左侧区域的得分
     Pm = 0; %中间区域的得分
-    Pr = 0; %右侧区域的得分
-    w_p = 0.3; %区域得分权重
-    w_sa = 0.4; %直线前进的权重
-    w_rl = 0.3; %左右超车或避让的权重
-    search_R = 5; %计算区域得分时的搜索半径
-    a_pass_abs = 30; %超车行为产生的加速度的大小
+    Pr = 0; %右侧区域的得分   
     a_pass_x = zeros(1,n);
-    a_pass_y = zeros(1,n);
-    d_sa = 3;
-    C_rl = 1.5;
-    C_ot = 1.25;
-    Kin = -1;
-    h = 4;
+    a_pass_y = zeros(1,n);    
     for i=1:n
         Vi = [vx(i),vy(i)]; %粒子i的速度向量
         Vi_abs = sqrt(sum(Vi.^2)); %粒子i的速度大小
@@ -253,8 +257,7 @@ for t=0:dt:T
         S_m = w_p*Pm+w_sa*d_sa*Vi_abs;
         S_r = w_p*Pr+w_rl*(C_rl-Vi_abs);
         [~,index] = max([S_l,S_m,S_r]); %获取最大值的索引
-        Vi_0 = Vi/Vi_abs; %粒子i当前速度的单位向量
-        a = 30; %转弯角度
+        Vi_0 = Vi/Vi_abs; %粒子i当前速度的单位向量       
         switch index
             case 1 %最大值为S_l，产生的超车加速度方向为Vi逆时针旋转a°
                 a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(a)-Vi_0(2)*sind(a));
@@ -275,7 +278,7 @@ for t=0:dt:T
     V = sqrt(vx.^2+vy.^2);
     index = find(V>v0); %找出超速粒子的索引
     vx(index) = vx(index).*v0(index)./V(index);
-    vy(index) = vy(index).*v0(index)./V(index);   
+    vy(index) = vy(index).*v0(index)./V(index);
     person_x = person_x+vx*dt; %计算x方向的位移
     person_y = person_y+vy*dt; %计算y方向的位移
     
