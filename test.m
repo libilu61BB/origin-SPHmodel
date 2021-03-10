@@ -1,6 +1,8 @@
 %% new-follow-model
 % 尝试新的跟随模型
 %% 更新日志
+% 2021-03-10
+% 引力跟随行为模型V2.1：j粒子的影响投影到i当前速度与期望速度的速度差方向
 
 
 clear;
@@ -10,8 +12,8 @@ switch condition
     case 1
         % 4*100m通道及双向行人 17710813276 6-1-301
         personNum = 50; %每队行人的数量
-        l_density = 1; %左侧行人的密度
-        r_density = 1; %右侧行人的密度
+        l_density = 0.5; %左侧行人的密度
+        r_density = 0.5; %右侧行人的密度
         l_width = 40; %左侧行人初始化区域长度
         r_width = 40; %右侧行人初始化区域长度
         [person_l_num, person_l_x, person_l_y, person_r_num, person_r_x, person_r_y] = personInitialization(l_density,r_density,l_width,4,r_width,4);
@@ -160,7 +162,7 @@ for t=0:dt:T
     al_x=P_r*al_x + (1-P_r)*yita.*cos(theta);%行人加速度在x方向上的朗之万随机力分量
     al_y=P_r*al_y + (1-P_r)*yita.*sin(theta);%行人加速度在y方向上的朗之万随机力分量
     %% 计算行人跟随行为产生的加速度
-    % 根据引力模型的跟随行为
+    % 引力模型跟随行为V2.1——形式1：j粒子的影响投影到i当前速度与期望速度的速度差方向
     a_graX = zeros(1,n); %初始化X跟随加速度
     a_graY = zeros(1,n); %初始化Y跟随加速度
     for i=1:n
@@ -173,15 +175,39 @@ for t=0:dt:T
             Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
             L = sqrt(sum(Dij.^2)); %向量ij的模，相当于两粒子的距离
             if L<5 && sum(Dij.*Vi)>0 %当ij之间距离小于5且j位于i的前方时才有跟随行为，进行后续计算
-                vj = sqrt(sum(Vj .^ 2)); %粒子j速度向量vj的模
-                vi = sqrt(sum(Vi .^ 2)); %粒子i速度向量vi的模
-                ej = Vj / vj; %粒子j速度方向向量ej
+                Vij = Vj - Vi; %粒子i与粒子j的速度向量差
                 ei0 = [exit_x(i)-person_x(i),exit_y(i)-person_y(i)]/sqrt(sum([exit_x(i)-person_x(i),exit_y(i)-person_y(i)].^2)); %由粒子i指向出口的单位向量
-                a_graX(i) = a_graX(i) + v0(i)/tau * (vj-vi) * sum(ej .* ei0) / (L/(Radius(i)+Radius(j)))^2 * (person_x(j)-person_x(i))/L; %计算X跟随加速度
-                a_graY(i) = a_graY(i) + v0(i)/tau * (vj-vi) * sum(ej .* ei0) / (L/(Radius(i)+Radius(j)))^2 * (person_y(j)-person_y(i))/L; %计算Y跟随加速度
+                ui0 = v0(i) * ei0; %粒子i的期望速度向量
+                eij = Dij/L;%由粒子i指向粒子j的方向向量
+                a_graX(i) = a_graX(i) + sum(Vij.*(ui0-Vi))/tau * sum(eij .* ei0) / (L/(Radius(i)+Radius(j)))^2 * (person_x(j)-person_x(i))/L; %计算X跟随加速度
+                a_graY(i) = a_graY(i) + sum(Vij.*(ui0-Vi))/tau * sum(eij .* ei0) / (L/(Radius(i)+Radius(j)))^2 * (person_y(j)-person_y(i))/L; %计算Y跟随加速度
             end
         end
     end
+%     % 根据引力模型的跟随行为
+%     % 引力模型跟随行为V1
+%     a_graX = zeros(1,n); %初始化X跟随加速度
+%     a_graY = zeros(1,n); %初始化Y跟随加速度
+%     for i=1:n
+%         for j=1:n
+%             if i==j
+%                 continue;
+%             end
+%             Dij = [person_x(j)-person_x(i),person_y(j)-person_y(i)]; %由i指向j的位置向量Dij
+%             Vi = [vx(i),vy(i)]; %粒子i的速度向量Vi
+%             Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
+%             L = sqrt(sum(Dij.^2)); %向量ij的模，相当于两粒子的距离
+%             if L<5 && sum(Dij.*Vi)>0 %当ij之间距离小于5且j位于i的前方时才有跟随行为，进行后续计算
+%                 vj = sqrt(sum(Vj .^ 2)); %粒子j速度向量vj的模
+%                 vi = sqrt(sum(Vi .^ 2)); %粒子i速度向量vi的模
+%                 ej = Vj / vj; %粒子j速度方向向量ej
+%                 ei0 = [exit_x(i)-person_x(i),exit_y(i)-person_y(i)]/sqrt(sum([exit_x(i)-person_x(i),exit_y(i)-person_y(i)].^2)); %由粒子i指向出口的单位向量
+%                 a_graX(i) = a_graX(i) + v0(i)/tau * (vj-vi) * sum(ej .* ei0) / (L/(Radius(i)+Radius(j)))^2 * (person_x(j)-person_x(i))/L; %计算X跟随加速度
+%                 a_graY(i) = a_graY(i) + v0(i)/tau * (vj-vi) * sum(ej .* ei0) / (L/(Radius(i)+Radius(j)))^2 * (person_y(j)-person_y(i))/L; %计算Y跟随加速度
+%             end
+%         end
+%     end
+   
     
     
     
