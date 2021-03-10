@@ -8,7 +8,7 @@
 
 clear;
 %% 设置障碍物坐标、行人坐标和出口坐标
-condition = 1;
+condition = 3;
 switch condition
     case 1
         % 15m×15m正方形空间及行人，出口宽度3m
@@ -213,7 +213,7 @@ for t=0:dt:T
     w_p = 0.3; %区域得分权重
     w_sa = 0.4; %直线前进的权重
     w_rl = 0.3; %左右超车或避让的权重
-    a_pass_abs = 20; %超车行为产生的加速度的大小
+    a_pass_abs = 30; %超车行为产生的加速度的大小
     a_pass_x = zeros(1,n);
     a_pass_y = zeros(1,n);
     d_sa = 3;

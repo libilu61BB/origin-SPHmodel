@@ -191,7 +191,7 @@ for t=0:dt:T
     w_sa = 0.4; %直线前进的权重
     w_rl = 0.3; %左右超车或避让的权重
     search_R = 5; %计算区域得分时的搜索半径
-    a_pass_abs = 20; %超车行为产生的加速度的大小
+    a_pass_abs = 30; %超车行为产生的加速度的大小
     a_pass_x = zeros(1,n);
     a_pass_y = zeros(1,n);
     d_sa = 3;
@@ -254,7 +254,7 @@ for t=0:dt:T
         S_r = w_p*Pr+w_rl*(C_rl-Vi_abs);
         index = find([S_l,S_m,S_r]==max([S_l,S_m,S_r]));
         Vi_0 = Vi/Vi_abs; %粒子i当前速度的单位向量
-        a = 60; %转弯角度
+        a = 30; %转弯角度
         switch index
             case 1 %最大值为S_l，产生的超车加速度方向为Vi逆时针旋转90°
                 a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(a)-Vi_0(2)*sind(a));
@@ -327,15 +327,17 @@ for t=0:dt:T
             hold on;
             plot(person_x(index_l),person_y(index_l),'.r', 'MarkerSize', 10)
             plot(person_x(index_r),person_y(index_r),'.b', 'MarkerSize', 10)
-            axis([0 50 -1 5]);%设置显示范围
+            axis([0 50 -2 5]);%设置显示范围
             if t==0 %只在第1次循环设置图窗位置和大小
                 set(gcf,'position',[0,500,2000,260]);
             end
     end
-    str_time=sprintf('疏散时间：%.2f',t);
-    str_escape=sprintf('疏散人数：%.0f',sum_escape);
+    str_time = sprintf('疏散时间：%.2f',t);
+    str_escape = sprintf('疏散人数：%.0f',sum_escape);
+    str_person = sprintf('当前粒子数：%d',n);
     text(25,-0.5,str_time);
-    text(25,-1.3,str_escape);
+    text(25,-1,str_escape);
+    text(25,-1.5,str_person);
     axis on;
     hold off;
     pause(0.001);
