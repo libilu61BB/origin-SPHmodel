@@ -208,12 +208,15 @@ for t=0:dt:T
             Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
             L = sqrt(sum(Dij.^2)); %向量ij的模，相当于两粒子的距离
             if L<5 && sum(Dij.*Vi)>0 %当ij之间距离小于5且j位于i的前方-时才有跟随行为，进行后续计算
+                Vij = Vj - Vi; %粒子i与粒子j的速度向量差
                 vj = sqrt(sum(Vj .^ 2)); %粒子j速度向量vj的模
                 vi = sqrt(sum(Vi .^ 2)); %粒子i速度向量vi的模
                 ej = Vj / vj; %粒子j速度方向向量ej
                 ei0 = [exit_x(i)-person_x(i),exit_y(i)-person_y(i)]/sqrt(sum([exit_x(i)-person_x(i),exit_y(i)-person_y(i)].^2)); %由粒子i指向出口的单位向量
-                a_graX(i) = a_graX(i) + v0(i)/tau * (vj-vi) * sum(ej .* ei0) / (L/(Radius(i)+Radius(j)))^2 * (person_x(j)-person_x(i))/L; %计算X跟随加速度
-                a_graY(i) = a_graY(i) + v0(i)/tau * (vj-vi) * sum(ej .* ei0) / (L/(Radius(i)+Radius(j)))^2 * (person_y(j)-person_y(i))/L; %计算Y跟随加速度
+                ui0 = v0(i) * ei0; %粒子i的期望速度向量
+                eij = Dij/L;%由粒子i指向粒子j的方向向量 
+                a_graX(i) = a_graX(i) + sum(Vij.*(ui0-Vi))/tau * sum(eij .* ei0) / (L/(Radius(i)+Radius(j)))^2 * (person_x(j)-person_x(i))/L; %计算X跟随加速度
+                a_graY(i) = a_graY(i) + sum(Vij.*(ui0-Vi))/tau * sum(eij .* ei0) / (L/(Radius(i)+Radius(j)))^2 * (person_y(j)-person_y(i))/L; %计算Y跟随加速度
             end
         end
     end  
