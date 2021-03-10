@@ -1,8 +1,6 @@
-%% new-follow-model
-% 尝试新的跟随模型
+% 尝试新的跟随模型（new-follow-model）
+
 %% 更新日志
-
-
 clear;
 %% 设置障碍物坐标、行人坐标和出口坐标
 condition = 1;

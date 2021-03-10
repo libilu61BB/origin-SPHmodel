@@ -1,4 +1,4 @@
-%% 
+% 双向行人超车行为模拟
 % 2021-03-02 
 % 添加了通道两侧行人根据密度的初始化机制
 % 添加了对中间区域行人的速度密度进行统计的模块
@@ -7,11 +7,11 @@
 clear;
 
 %% 设置障碍物坐标、行人坐标和出口坐标
-condition = 1;
+condition = 2;
 switch condition
     case 1
-        % 4*100m通道及双向行人 17710813276 6-1-301
-%         personNum = 50; %每队行人的数量
+        % 4*100m通道及双向行人
+        % personNum = 50; %每队行人的数量
         l_density = 1; %左侧行人的密度
         r_density = 1; %右侧行人的密度
         l_width = 10; %左侧行人初始化区域长度
@@ -26,11 +26,30 @@ switch condition
         wall_y2 = 4 * ones(1, length(wall_x2));
         wall_x = [wall_x1, wall_x2];
         wall_y = [wall_y1, wall_y2];
-%         person_x = [linspace(1,1+0.5*personNum,personNum), linspace(99-0.5*personNum,99,personNum)];
-%         person_y = 3.4*rand(1,length(person_x))+0.3; %y∈[0.3 3.7]
+        % person_x = [linspace(1,1+0.5*personNum,personNum), linspace(99-0.5*personNum,99,personNum)];
+        % person_y = 3.4*rand(1,length(person_x))+0.3; %y∈[0.3 3.7]
         exit_x=[150*ones(1,person_l_num),-50*ones(1,person_r_num)];
         exit_y = 2*ones(1,person_l_num + person_r_num);
         end_x = [100*ones(1,person_l_num),0*ones(1,person_r_num)];
+    case 2
+        % 4*50m通道及双向行人
+        l_density = 1; %左侧行人的密度
+        r_density = 1; %右侧行人的密度
+        l_width = 10; %左侧行人初始化区域长度
+        r_width = 10; %右侧行人初始化区域长度
+        [person_l_num, person_l_x, person_l_y, person_r_num, person_r_x, person_r_y] = personInitialization(l_density,r_density,l_width,4,r_width,4);
+        person_r_x = person_r_x + 40;
+        person_x = [person_l_x person_r_x];
+        person_y = [person_l_y person_r_y];
+        wall_x1 = (0:0.1:50);
+        wall_y1 = zeros(1, length(wall_x1));
+        wall_x2 = (0:0.1:50);
+        wall_y2 = 4 * ones(1, length(wall_x2));
+        wall_x = [wall_x1, wall_x2];
+        wall_y = [wall_y1, wall_y2];
+        exit_x=[100*ones(1,person_l_num),-50*ones(1,person_r_num)];
+        exit_y = 2*ones(1,person_l_num + person_r_num);
+        end_x = [50*ones(1,person_l_num),0*ones(1,person_r_num)];
 end
 %% 计算坐标，绘制图像
 n=length(person_x);
@@ -81,10 +100,10 @@ for t=0:dt:T
             if j==i
                 continue;
             end
-            r=sqrt((person_x(i)-person_x(j))^2+(person_y(i)-person_y(j))^2); %两行人粒子之间的距离
+            r=sqrt((person_x(i) - person_x(j))^2 + (person_y(i) - person_y(j))^2); %两行人粒子之间的距离
             if r<=(Radius(i)+Radius(j))
-                av_x(i)=av_x(i)+u*m_person*((vx(j)-vx(i))/(Rho_person(i)*Rho_person(j)))*(1800*(Radius(i)+Radius(j)-r))/(45*pi*(Radius(i)+Radius(j))^5);
-                av_y(i)=av_y(i)+u*m_person*((vy(j)-vy(i))/(Rho_person(i)*Rho_person(j)))*(1800*(Radius(i)+Radius(j)-r))/(45*pi*(Radius(i)+Radius(j))^5);
+                av_x(i) = av_x(i)+u*m_person*((vx(j)-vx(i))/(Rho_person(i)*Rho_person(j)))*(1800*(Radius(i)+Radius(j)-r))/(45*pi*(Radius(i)+Radius(j))^5);
+                av_y(i) = av_y(i)+u*m_person*((vy(j)-vy(i))/(Rho_person(i)*Rho_person(j)))*(1800*(Radius(i)+Radius(j)-r))/(45*pi*(Radius(i)+Radius(j))^5);
             end
         end
         d=zeros(1,s);%初始化行人粒子i与各障碍粒子的距离
@@ -170,7 +189,7 @@ for t=0:dt:T
             Dij = [person_x(j)-person_x(i),person_y(j)-person_y(i)]; %由i指向j的位置向量Dij
             Vi = [vx(i),vy(i)]; %粒子i的速度向量Vi
             Dij_abs = sqrt(sum(Dij.^2)); %向量ij的模，相当于两粒子的距离
-            if Dij_abs<=2 && sum(Dij.*Vi)>0 %当距离小于等于2且j位于i的前方时才进行后续计算
+            if Dij_abs<=5 && sum(Dij.*Vi)>0 %当距离小于等于2且j位于i的前方时才进行后续计算
                 ei = [exit_x(i)-person_x(i),exit_y(i)-person_y(i)]/sqrt(sum([exit_x(i)-person_x(i),exit_y(i)-person_y(i)].^2)); %由粒子i指向出口的单位向量
                 Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
                 Bij_3 = max(0,sum(ei.*Vj)/sqrt(sum(Vj.^2)));
@@ -193,7 +212,7 @@ for t=0:dt:T
     w_p = 0.3; %区域得分权重
     w_sa = 0.4; %直线前进的权重
     w_rl = 0.3; %左右超车或避让的权重
-    search_R = 10; %计算区域得分时的半径
+    search_R = 5; %计算区域得分时的搜索半径
     a_pass_abs = 10; %超车行为产生的加速度的大小
     a_pass_x = zeros(1,n);
     a_pass_y = zeros(1,n);
@@ -204,7 +223,7 @@ for t=0:dt:T
     h = 4;
     for i=1:n
         Vi = [vx(i),vy(i)]; %粒子i的速度向量
-        Vi_abs = sqrt(sum(Vi.^2));
+        Vi_abs = sqrt(sum(Vi.^2)); %粒子i的速度大小
         if Vi_abs==0
             continue
         end
@@ -213,7 +232,7 @@ for t=0:dt:T
                 continue
             end
             Dij = [person_x(j)-person_x(i), person_y(j)-person_y(i)]; %由i指向j的位置向量Dij
-            Dij_abs = sqrt(sum(Dij.^2));
+            Dij_abs = sqrt(sum(Dij.^2)); %ij之间的距离
             if Dij_abs<=search_R
                 VxD = Vi(1)*Dij(2)-Vi(2)*Dij(1); %Vi与Dij的叉乘
                 switch (VxD>=0)
@@ -259,13 +278,13 @@ for t=0:dt:T
         Vi_0 = Vi/Vi_abs; %粒子i当前速度的单位向量
         switch index
             case 1 %最大值为S_l，产生的超车加速度方向为Vi逆时针旋转90°
-                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(90)-Vi_0(2)*sind(90));
-                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(90)+Vi_0(2)*cosd(90));
+                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(30)-Vi_0(2)*sind(30));
+                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(30)+Vi_0(2)*cosd(30));
             case 2 %最大值为S_m，无超车行为
                 continue
             case 3 %最大值为S_r，产生的超车加速度方向为Vi顺时针旋转90°
-                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(-90)-Vi_0(2)*sind(-90));
-                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(-90)+Vi_0(2)*cosd(-90));
+                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(-30)-Vi_0(2)*sind(-30));
+                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(-30)+Vi_0(2)*cosd(-30));
         end
     end
     
@@ -285,22 +304,22 @@ for t=0:dt:T
     person_y = person_y+vy*dt; %计算y方向的位移
     
     %% 统计行人速度-密度图
-    index = find(person_x>49 & person_x<51); %寻找在x=46~52区间范围内的粒子
-    index_blue = find(index>person_l_num); %在x=46~52区间范围内的蓝色粒子
-    v_mean = mean(vx(index(index_blue))); %计算蓝色粒子们的平均前进速度
-    if v_mean <= 0
-        count = count+1; %进行速度-密度统计
-        v_sum = v_sum+v_mean; %几个步长内平均速度和
-        density_mean = length(index) / (2*4); %计算区域密度
-        density_sum = density_sum+density_mean; %几个步长内区域密度之和
-    end
-    if count == 20
-        v_blue = [v_blue, v_sum/count];
-        density_area = [density_area, density_sum/count];
-        count = 0;
-        v_sum = 0;
-        density_sum = 0;
-    end
+%     index = find(person_x>49 & person_x<51); %寻找在x=46~52区间范围内的粒子
+%     index_blue = find(index>person_l_num); %在x=46~52区间范围内的蓝色粒子
+%     v_mean = mean(vx(index(index_blue))); %计算蓝色粒子们的平均前进速度
+%     if v_mean <= 0
+%         count = count+1; %进行速度-密度统计
+%         v_sum = v_sum+v_mean; %几个步长内平均速度和
+%         density_mean = length(index) / (2*4); %计算区域密度
+%         density_sum = density_sum+density_mean; %几个步长内区域密度之和
+%     end
+%     if count == 20
+%         v_blue = [v_blue, v_sum/count];
+%         density_area = [density_area, density_sum/count];
+%         count = 0;
+%         v_sum = 0;
+%         density_sum = 0;
+%     end
     
     %% 绘制图像
     for i=1:n %统计逃离人数
@@ -320,6 +339,18 @@ for t=0:dt:T
             plot(person_x(1:person_l_num),person_y(1:person_l_num),'.r', 'MarkerSize', 10)
             plot(person_x(person_l_num+1:end),person_y(person_l_num+1:end),'.b', 'MarkerSize', 10)
             axis([-1 101 -1 5]);%设置显示范围
+            if t==0 %只在第1次循环设置图窗位置和大小
+                set(gcf,'position',[0,500,2000,160]);
+            end
+        case 2
+            % 4X50画图
+            plot(wall_x1,wall_y1,'LineWidth',1,'Color','k');
+            hold on;
+            plot(wall_x2,wall_y2,'LineWidth',1,'Color','k');
+            hold on;
+            plot(person_x(1:person_l_num),person_y(1:person_l_num),'.r', 'MarkerSize', 10)
+            plot(person_x(person_l_num+1:end),person_y(person_l_num+1:end),'.b', 'MarkerSize', 10)
+            axis([-1 51 -1 5]);%设置显示范围
             if t==0 %只在第1次循环设置图窗位置和大小
                 set(gcf,'position',[0,500,2000,160]);
             end
