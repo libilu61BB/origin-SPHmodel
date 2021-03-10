@@ -2,9 +2,9 @@
 clear;
 condition = 1; %选择模拟场景
 %% 初始化参数
-wall_x1 = (0:0.1:50);
+wall_x1 = (-20:0.1:70);
 wall_y1 = zeros(1, length(wall_x1));
-wall_x2 = (0:0.1:50);
+wall_x2 = (-20:0.1:70);
 wall_y2 = 4 * ones(1, length(wall_x2));
 wall_x = [wall_x1, wall_x2];
 wall_y = [wall_y1, wall_y2];
@@ -191,7 +191,7 @@ for t=0:dt:T
     w_sa = 0.4; %直线前进的权重
     w_rl = 0.3; %左右超车或避让的权重
     search_R = 5; %计算区域得分时的搜索半径
-    a_pass_abs = 10; %超车行为产生的加速度的大小
+    a_pass_abs = 20; %超车行为产生的加速度的大小
     a_pass_x = zeros(1,n);
     a_pass_y = zeros(1,n);
     d_sa = 3;
@@ -254,15 +254,16 @@ for t=0:dt:T
         S_r = w_p*Pr+w_rl*(C_rl-Vi_abs);
         index = find([S_l,S_m,S_r]==max([S_l,S_m,S_r]));
         Vi_0 = Vi/Vi_abs; %粒子i当前速度的单位向量
+        a = 60; %转弯角度
         switch index
             case 1 %最大值为S_l，产生的超车加速度方向为Vi逆时针旋转90°
-                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(30)-Vi_0(2)*sind(30));
-                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(30)+Vi_0(2)*cosd(30));
+                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(a)-Vi_0(2)*sind(a));
+                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(a)+Vi_0(2)*cosd(a));
             case 2 %最大值为S_m，无超车行为
                 continue
             case 3 %最大值为S_r，产生的超车加速度方向为Vi顺时针旋转90°
-                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(-30)-Vi_0(2)*sind(-30));
-                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(-30)+Vi_0(2)*cosd(-30));
+                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(-a)-Vi_0(2)*sind(-a));
+                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(-a)+Vi_0(2)*cosd(-a));
         end
     end
     
@@ -305,13 +306,13 @@ for t=0:dt:T
             sum_escape = sum_escape+1;
             person_x(i) = nan;
             person_y(i) = nan;
-            exit_x(i) = nan;
-            exit_y(i) = nan;
-            end_x(i) = nan;
-            vx(i) = nan;
-            vy(i) = nan;
-            v0(i) = nan;
-            Radius(i) = nan;
+%             exit_x(i) = nan;
+%             exit_y(i) = nan;
+%             end_x(i) = nan;
+%             vx(i) = nan;
+%             vy(i) = nan;
+%             v0(i) = nan;
+%             Radius(i) = nan;
         end
     end
     %% 绘制图像
@@ -328,11 +329,11 @@ for t=0:dt:T
             plot(person_x(index_r),person_y(index_r),'.b', 'MarkerSize', 10)
             axis([0 50 -1 5]);%设置显示范围
             if t==0 %只在第1次循环设置图窗位置和大小
-                set(gcf,'position',[0,500,2000,160]);
+                set(gcf,'position',[0,500,2000,260]);
             end
     end
     str_time=sprintf('疏散时间：%.2f',t);
-    str_escape=sprintf('逃离人数：%.0f',sum_escape);
+    str_escape=sprintf('疏散人数：%.0f',sum_escape);
     text(25,-0.5,str_time);
     text(25,-1.3,str_escape);
     axis on;

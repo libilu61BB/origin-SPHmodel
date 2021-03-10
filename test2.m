@@ -213,7 +213,7 @@ for t=0:dt:T
     w_p = 0.3; %区域得分权重
     w_sa = 0.4; %直线前进的权重
     w_rl = 0.3; %左右超车或避让的权重
-    a_pass_abs = 10; %超车行为产生的加速度的大小
+    a_pass_abs = 20; %超车行为产生的加速度的大小
     a_pass_x = zeros(1,n);
     a_pass_y = zeros(1,n);
     d_sa = 3;
@@ -276,15 +276,16 @@ for t=0:dt:T
         S_r = w_p*Pr+w_rl*(C_rl-Vi_abs);
         index = find([S_l,S_m,S_r]==max([S_l,S_m,S_r]));
         Vi_0 = Vi/Vi_abs; %粒子i当前速度的单位向量
+        a = 60;
         switch index
             case 1 %最大值为S_l，产生的超车加速度方向为Vi逆时针旋转30°
-                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(30)-Vi_0(2)*sind(30));
-                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(30)+Vi_0(2)*cosd(30));
+                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(a)-Vi_0(2)*sind(a));
+                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(a)+Vi_0(2)*cosd(a));
             case 2 %最大值为S_m，无超车行为
                 continue
             case 3 %最大值为S_r，产生的超车加速度方向为Vi顺时针旋转30°
-                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(-30)-Vi_0(2)*sind(-30));
-                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(-30)+Vi_0(2)*cosd(-30));
+                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(-a)-Vi_0(2)*sind(-a));
+                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(-a)+Vi_0(2)*cosd(-a));
         end
     end
     

@@ -50,6 +50,19 @@ switch condition
         exit_x=[100*ones(1,person_l_num),-50*ones(1,person_r_num)];
         exit_y = 2*ones(1,person_l_num + person_r_num);
         end_x = [50*ones(1,person_l_num),0*ones(1,person_r_num)];
+    case 3
+        % 4*50m通道，两个行人
+        wall_x1 = (0:0.1:50);
+        wall_y1 = zeros(1, length(wall_x1));
+        wall_x2 = (0:0.1:50);
+        wall_y2 = 4 * ones(1, length(wall_x2));
+        wall_x = [wall_x1, wall_x2];
+        wall_y = [wall_y1, wall_y2];
+        person_x = [5 45];
+        person_y = [2 2];
+        exit_x = [100 -50];
+        exit_y = [2 2];
+        end_x = [50 0];
 end
 %% 计算坐标，绘制图像
 n=length(person_x);
@@ -58,9 +71,8 @@ h1=5;%计算密度和排斥力时使用的核半径
 Radius=0.3*ones(1,n);%假设行人的半径均为0.3m
 m_person=70;%行人的质量
 m_wall=500;%障碍物的质量
-% va=1.2; %低速行人的期望速度值
-% vb=1.8; %高速行人的期望速度值
 v0 = [1.2*ones(1,n/4),1.8*ones(1,n/4),1.2*ones(1,n/4),1.8*ones(1,n/4)]; %定义行人的期望速度，前一半为低速行人，后一半为高速行人,floor为向下取整
+% v0 = [2 2];
 u=2; %粘度，用于计算粒子之间摩擦力产生的加速度
 vx=zeros(1,n);%行人速度在x方向上的分量，初始时刻为0
 vy=zeros(1,n);%行人速度在y方向上的分量，初始时刻为0
@@ -213,7 +225,7 @@ for t=0:dt:T
     w_sa = 0.4; %直线前进的权重
     w_rl = 0.3; %左右超车或避让的权重
     search_R = 5; %计算区域得分时的搜索半径
-    a_pass_abs = 10; %超车行为产生的加速度的大小
+    a_pass_abs = 20; %超车行为产生的加速度的大小
     a_pass_x = zeros(1,n);
     a_pass_y = zeros(1,n);
     d_sa = 3;
@@ -276,15 +288,16 @@ for t=0:dt:T
         S_r = w_p*Pr+w_rl*(C_rl-Vi_abs);
         index = find([S_l,S_m,S_r]==max([S_l,S_m,S_r]));
         Vi_0 = Vi/Vi_abs; %粒子i当前速度的单位向量
+        a = 60; %转弯角度
         switch index
             case 1 %最大值为S_l，产生的超车加速度方向为Vi逆时针旋转90°
-                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(30)-Vi_0(2)*sind(30));
-                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(30)+Vi_0(2)*cosd(30));
+                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(a)-Vi_0(2)*sind(a));
+                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(a)+Vi_0(2)*cosd(a));
             case 2 %最大值为S_m，无超车行为
                 continue
             case 3 %最大值为S_r，产生的超车加速度方向为Vi顺时针旋转90°
-                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(-30)-Vi_0(2)*sind(-30));
-                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(-30)+Vi_0(2)*cosd(-30));
+                a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(-a)-Vi_0(2)*sind(-a));
+                a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(-a)+Vi_0(2)*cosd(-a));
         end
     end
     
@@ -351,6 +364,15 @@ for t=0:dt:T
             plot(person_x(1:person_l_num),person_y(1:person_l_num),'.r', 'MarkerSize', 10)
             plot(person_x(person_l_num+1:end),person_y(person_l_num+1:end),'.b', 'MarkerSize', 10)
             axis([-1 51 -1 5]);%设置显示范围
+            if t==0 %只在第1次循环设置图窗位置和大小
+                set(gcf,'position',[0,500,2000,160]);
+            end
+        case 3
+            plot(wall_x1,wall_y1,'LineWidth',1,'Color','k');
+            hold on;
+            plot(wall_x2,wall_y2,'LineWidth',1,'Color','k');
+            hold on;
+            plot(person_x,person_y,'.r', 'MarkerSize', 10)
             if t==0 %只在第1次循环设置图窗位置和大小
                 set(gcf,'position',[0,500,2000,160]);
             end
