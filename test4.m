@@ -1,3 +1,7 @@
+%% 更新日志
+clear;
+% 2021-03-10
+% 引力跟随行为模型V2.1：j粒子的影响投影到i当前速度与期望速度的速度差方向
 % 双向行人流超车行为模拟，4*50m通道及连续双向行人
 clear;
 condition = 1; %选择模拟场景
@@ -15,11 +19,12 @@ m_person=70; %行人的质量
 m_wall=500; %障碍物的质量
 u=2; %粘度，用于计算粒子之间摩擦力产生的加速度
 T=200; %模拟总时间
+tau = 0.2;%行人加速的特征时间
 sum_escape=0; %统计已疏散的人数
 P=1; %熟悉逃生路线的行人比例
 P_f=1; %从众程度
 dt=0.02; %时间步长
-t_person = 0.5; %生成粒子的时间间隔
+t_person = 0.1; %生成粒子的时间间隔
 
 person_x = []; %行人的x坐标
 person_y = []; %行人的y坐标
@@ -157,6 +162,7 @@ for t=0:dt:T
     al_x=P_r*al_x + (1-P_r)*yita.*cos(theta);%行人加速度在x方向上的朗之万随机力分量
     al_y=P_r*al_y + (1-P_r)*yita.*sin(theta);%行人加速度在y方向上的朗之万随机力分量
     %% 计算行人跟随行为产生的加速度
+    % 引力模型跟随行为V2.1——形式1：j粒子的影响投影到i当前速度与期望速度的速度差方向
     a_graX = zeros(1,n); %初始化X跟随加速度
     a_graY = zeros(1,n); %初始化Y跟随加速度
     for i=1:n
@@ -166,19 +172,15 @@ for t=0:dt:T
             end
             Dij = [person_x(j)-person_x(i),person_y(j)-person_y(i)]; %由i指向j的位置向量Dij
             Vi = [vx(i),vy(i)]; %粒子i的速度向量Vi
-            Dij_abs = sqrt(sum(Dij.^2)); %向量ij的模，相当于两粒子的距离
-            if Dij_abs<=5 && sum(Dij.*Vi)>0 %当距离小于等于2且j位于i的前方时才进行后续计算
-                ei = [exit_x(i)-person_x(i),exit_y(i)-person_y(i)]/sqrt(sum([exit_x(i)-person_x(i),exit_y(i)-person_y(i)].^2)); %由粒子i指向出口的单位向量
-                Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
-                Bij_3 = max(0,sum(ei.*Vj)/sqrt(sum(Vj.^2)));
-                if Bij_3==0
-                    continue;
-                else
-                    Bij_4 = min(sqrt(sum(Vj.^2))/v0(i),1);
-                    Bij_5 = min(exp(1)^((Radius(i)+Radius(j))-Dij_abs),1);
-                    a_graX(i) = a_graX(i)+0.4*v0(i)*Bij_3*Bij_4*Bij_5*Dij(1)/Dij_abs; %计算X跟随加速度
-                    a_graY(i) = a_graY(i)+0.4*v0(i)*Bij_3*Bij_4*Bij_5*Dij(2)/Dij_abs; %计算Y跟随加速度
-                end
+            Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
+            L = sqrt(sum(Dij.^2)); %向量ij的模，相当于两粒子的距离
+            if L<5 && sum(Dij.*Vi)>0 %当ij之间距离小于5且j位于i的前方时才有跟随行为，进行后续计算
+                Vij = Vj - Vi; %粒子i与粒子j的速度向量差
+                ei0 = [exit_x(i)-person_x(i),exit_y(i)-person_y(i)]/sqrt(sum([exit_x(i)-person_x(i),exit_y(i)-person_y(i)].^2)); %由粒子i指向出口的单位向量
+                ui0 = v0(i) * ei0; %粒子i的期望速度向量
+                eij = Dij/L;%由粒子i指向粒子j的方向向量
+                a_graX(i) = a_graX(i) + sum(Vij.*(ui0-Vi))/tau * sum(eij .* ei0) / (L/(Radius(i)+Radius(j)))^2 * (person_x(j)-person_x(i))/L; %计算X跟随加速度
+                a_graY(i) = a_graY(i) + sum(Vij.*(ui0-Vi))/tau * sum(eij .* ei0) / (L/(Radius(i)+Radius(j)))^2 * (person_y(j)-person_y(i))/L; %计算Y跟随加速度
             end
         end
     end
