@@ -29,24 +29,18 @@ end
 %Rho_0=m_person*(4/(pi*h^8))*(h^2-4*avg_Radius^2)^3;%临界密度
 for i=1:n
     for j=1:n
-        %if i==j
-            %continue;
-        %end
         r_2=(person_x(i)-person_x(j))^2+(person_y(i)-person_y(j))^2;%计算两行人粒子之间的距离平方
         if r_2<=h^2 %只计算核半径范围内其他行人粒子对粒子i密度的影响
             Rho_P(i)=Rho_P(i)+m_person*(4/(pi*h^8))*(h^2-r_2)^3;
         end
     end
-    %if Rho_P(i)<1
-        %Rho_P(i)=1;
-    %end
     d=zeros(1,s);
     for j=1:s
         d(j)=(person_x(i)-wall_x(j))^2+(person_y(i)-wall_y(j))^2;%计算行人与障碍粒子的距离平方
     end
-    [r,u]=min(d);
+    [r,~]=min(d);
     if r<=h^2 %只计算核半径范围内最近障碍粒子对粒子i密度的影响
-        Rho_P(i)=Rho_P(i)+m_wall*(4/(pi*h^8))*(h^2-d(u))^3;
+        Rho_P(i)=Rho_P(i)+m_wall*(4/(pi*h^8))*(h^2-r)^3;
     end
 end
 %% 计算障碍粒子的密度

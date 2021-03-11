@@ -7,7 +7,7 @@
 clear;
 
 %% 设置障碍物坐标、行人坐标和出口坐标
-condition = 2;
+condition = 3;
 switch condition
     case 1
         % 4*100m通道及双向行人
@@ -51,7 +51,7 @@ switch condition
         exit_y = 2*ones(1,person_l_num + person_r_num);
         end_x = [50*ones(1,person_l_num),0*ones(1,person_r_num)];
     case 3
-        % 4*50m通道，两个行人
+        % 4*50m通道，几个行人
         wall_x1 = (0:0.1:50);
         wall_y1 = zeros(1, length(wall_x1));
         wall_x2 = (0:0.1:50);
@@ -88,6 +88,7 @@ dt=0.02;
 
 % 跟随行为相关参数设置
 tau = 0.2; %行人加速的特征时间
+L_fol = 5; %跟随行为的距离
 
 % 超车行为相关设置
 a = 30; %超车行为的转弯角度
@@ -95,7 +96,7 @@ w_p = 0.3; %区域得分权重
 w_sa = 0.4; %直线前进的权重
 w_rl = 0.3; %左右超车或避让的权重
 search_R = 5; %计算区域得分时的搜索半径
-a_pass_abs = 30; %超车行为产生的加速度的大小
+a_pass_abs = 10; %超车行为产生的加速度的大小
 d_sa = 3;
 C_rl = 1.5;
 C_ot = 1.25;
@@ -223,7 +224,7 @@ for t=0:dt:T
             Vi = [vx(i),vy(i)]; %粒子i的速度向量Vi
             Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
             L = sqrt(sum(Dij.^2)); %向量ij的模，相当于两粒子的距离
-            if L<5 && sum(Dij.*Vi)>0 %当ij之间距离小于5且j位于i的前方-时才有跟随行为，进行后续计算
+            if L<L_fol && sum(Dij.*Vi)>0 %当ij之间距离小于5且j位于i的前方-时才有跟随行为，进行后续计算
                 Vij = Vj - Vi; %粒子i与粒子j的速度向量差
                 vj = sqrt(sum(Vj .^ 2)); %粒子j速度向量vj的模
                 vi = sqrt(sum(Vi .^ 2)); %粒子i速度向量vi的模
@@ -236,33 +237,6 @@ for t=0:dt:T
             end
         end
     end  
-    
-%     % 参考文献中的跟随模型
-%     a_graX = zeros(1,n); %初始化X跟随加速度
-%     a_graY = zeros(1,n); %初始化Y跟随加速度
-%     for i=1:n
-%         for j=1:n
-%             if i==j
-%                 continue;
-%             end
-%             Dij = [person_x(j)-person_x(i),person_y(j)-person_y(i)]; %由i指向j的位置向量Dij
-%             Vi = [vx(i),vy(i)]; %粒子i的速度向量Vi
-%             Dij_abs = sqrt(sum(Dij.^2)); %向量ij的模，相当于两粒子的距离
-%             if Dij_abs<=5 && sum(Dij.*Vi)>0 %当距离小于等于2且j位于i的前方时才进行后续计算
-%                 ei = [exit_x(i)-person_x(i),exit_y(i)-person_y(i)]/sqrt(sum([exit_x(i)-person_x(i),exit_y(i)-person_y(i)].^2)); %由粒子i指向出口的单位向量
-%                 Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
-%                 Bij_3 = max(0,sum(ei.*Vj)/sqrt(sum(Vj.^2)));
-%                 if Bij_3==0
-%                     continue;
-%                 else
-%                     Bij_4 = min(sqrt(sum(Vj.^2))/v0(i),1);
-%                     Bij_5 = min(exp(1)^((Radius(i)+Radius(j))-Dij_abs),1);
-%                     a_graX(i) = a_graX(i)+0.4*v0(i)*Bij_3*Bij_4*Bij_5*Dij(1)/Dij_abs; %计算X跟随加速度
-%                     a_graY(i) = a_graY(i)+0.4*v0(i)*Bij_3*Bij_4*Bij_5*Dij(2)/Dij_abs; %计算Y跟随加速度
-%                 end
-%             end
-%         end
-%     end
     
     %% 计算超车行为产生的加速度
     Pl = 0; %左侧区域的得分
