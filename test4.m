@@ -6,13 +6,46 @@ clear;
 clear;
 condition = 1; %选择模拟场景
 %% 初始化参数
-wall_x1 = (-20:0.1:70);
-wall_y1 = zeros(1, length(wall_x1));
-wall_x2 = (-20:0.1:70);
-wall_y2 = 4 * ones(1, length(wall_x2));
-wall_x = [wall_x1, wall_x2];
-wall_y = [wall_y1, wall_y2];
-s=length(wall_x);
+switch condition
+    case 1 %随机生成行人
+        % 障碍物相关参数
+        wall_x1 = (-20:0.1:70);
+        wall_y1 = zeros(1, length(wall_x1));
+        wall_x2 = (-20:0.1:70);
+        wall_y2 = 4 * ones(1, length(wall_x2));
+        wall_x = [wall_x1, wall_x2];
+        wall_y = [wall_y1, wall_y2];
+        s=length(wall_x);
+        % 行人相关参数
+        person_x = []; %行人的x坐标
+        person_y = []; %行人的y坐标
+        exit_x = []; %出口的x坐标
+        exit_y = []; %出口的y坐标
+        end_x = []; %清除点的坐标
+        vx = []; %行人速度在x方向上的分量
+        vy = []; %行人速度在y方向上的分量
+        v0 = []; %行人的期望速度
+        Radius = []; %行人的半径
+    case 2 %两粒子相向而行
+        % 障碍物相关参数
+        wall_x1 = (-20:0.1:70);
+        wall_y1 = zeros(1, length(wall_x1));
+        wall_x2 = (-20:0.1:70);
+        wall_y2 = 4 * ones(1, length(wall_x2));
+        wall_x = [wall_x1, wall_x2];
+        wall_y = [wall_y1, wall_y2];
+        s=length(wall_x);
+        % 行人相关参数
+        person_x = [10 40]; %行人的x坐标
+        person_y = [2 2]; %行人的y坐标
+        exit_x = [100 -50]; %出口的x坐标
+        exit_y = [2 2]; %出口的y坐标
+        end_x = [50 0]; %清除点的坐标
+        vx = [0 0]; %行人速度在x方向上的分量
+        vy = [0 0]; %行人速度在y方向上的分量
+        v0 = [1.2 1.2]; %行人的期望速度
+        Radius = [0.3 0.3]; %行人的半径       
+end
 
 h1=5; %计算密度和排斥力时使用的核半径
 m_person=70; %行人的质量
@@ -26,36 +59,13 @@ P_f=1; %从众程度
 dt=0.02; %时间步长
 t_person = 0.5; %生成粒子的时间间隔
 
-% 超车行为1.0相关参数设置(参考文献)
-% w_p = 0.3; %区域得分权重
-% w_sa = 0.4; %直线前进的权重
-% w_rl = 0.3; %左右超车或避让的权重
-% search_R = 5; %计算区域得分时的搜索半径
-% a_pass_abs = 20; %超车行为产生的加速度的大小
-% d_sa = 3;
-% C_rl = 1.5;
-% C_ot = 1.25;
-% Kin = -1;
-% h = 4;
-% a = 60; %转弯角度
-
 % 超车行为2.0相关参数
 search_R = 5; %计算区域得分时的搜索半径
 L_j2k = 0.6; %粒子j与空隙的距离
 h_k = 2; %计算空隙密度时使用的核半径
+a = 0.8; %i前方空隙的密度修正指数
 
-% 行人相关参数
-person_x = []; %行人的x坐标
-person_y = []; %行人的y坐标
-exit_x = []; %出口的x坐标
-exit_y = []; %出口的y坐标
-end_x = []; %清除点的坐标
-vx = []; %行人速度在x方向上的分量
-vy = []; %行人速度在y方向上的分量
-v0 = []; %行人的期望速度
-Radius = []; %行人的半径
-
-%% 朗之万随机力相关设置
+% 朗之万随机力相关参数
 P_r=0.5^dt;%加速度朗之万分量的时间权重
 A=10;%加速度朗之万分量的量级
 
@@ -69,7 +79,7 @@ density_area = [];
 %% 模拟循环
 for t=0:dt:T
     %% 随机生成行人粒子
-    if mod(t,t_person)==0 %每隔固定的时间随机生成一次
+    if condition==1 && mod(t,t_person)==0 %每隔固定的时间随机生成一次
         person_x_temp = [-0.5-5*rand 50.5+5*rand]; %在左右两侧各生成一个粒子
         person_y_temp = [0.3+3.4*rand 0.3+3.4*rand];
         person_x = [person_x person_x_temp];
@@ -222,8 +232,10 @@ for t=0:dt:T
         end
         index_follow(index_follow==0) = []; %删除多余元素
         index_pass(index_pass==0) = []; %删除多余元素
+        n_follow = length(index_follow);
+        n_pass = length(index_pass);
         %% 跟随加速度计算
-        for k=1:length(index_follow)
+        for k=1:n_follow
             j = index_follow(k); %只计算满足条件的粒子j
             Vj = [vx(j),vy(j)];
             Vij = Vj - Vi; %粒子i与粒子j的速度向量差
@@ -235,48 +247,80 @@ for t=0:dt:T
             a_graY(i) = a_graY(i) + sum(Vij.*(ui0-Vi))/tau * sum(eij .* ei0) /...
                 (Dij_abs/(Radius(i)+Radius(j)))^2 * eij(2); %计算Y跟随加速度
         end
-        %% 超车加速度计算    
-        Dik_m = [person_x(i)+L_j2k*Vi(1)/Vi_abs,person_y(i)+L_j2k*Vi(2)/Vi_abs]; %i前方的空隙的向量坐标
+        %% 超车加速度计算
+        Dok_m = [person_x(i)+L_j2k*Vi(1)/Vi_abs,person_y(i)+L_j2k*Vi(2)/Vi_abs]; %i前方空隙的坐标（由坐标原点o指向空隙k,下同）
+        Rho_k = zeros(1,2*n_pass+1); %初始化空隙密度
+        % ↓↓计算i前方的空隙密度【储存在Rho_k(1)中】↓↓
+        for jj = 1:n
+            r2_m = (Dok_m(1)-person_x(jj))^2+(Dok_m(2)-person_y(jj))^2;%计算粒子j与空隙m之间的距离平方
+            if r2_m<=h_k^2 %计算核半径范围内粒子j对空隙kk密度的影响
+                Rho_k(1) = Rho_k(1)+a*m_person*(4/(pi*h_k^8))*(h_k^2-r2_m)^3;
+            end
+        end
+        d2_m = min((Dok_m(1)-wall_x).^2+(Dok_m(2)-wall_y).^2);%计算空隙与障碍的最小距离（平方）
+        if d2_m<=h_k^2 %只计算核半径范围内最近障碍粒子对粒子i密度的影响
+            Rho_k(1)=Rho_k(1)+a*m_wall*(4/(pi*h_k^8))*(h_k^2-d2_m)^3;
+        end
+        % ↓↓计算j左右两侧空隙的密度【右侧空隙密度储存在Rho_k(2*k)中，左侧空隙密度储存在Rho_k(2*k+1)中】↓↓
         for k=1:length(index_pass)
             j = index_pass(k); %只计算满足条件的粒子j
             Dij = [person_x(j)-person_x(i),person_y(j)-person_y(i)];
             Dij_abs = sqrt(sum(Dij.^2));
             cosij = Dij(1)/Dij_abs;
             sinij = Dij(2)/Dij_abs;
-            Dik_r = [person_x(j)+L_j2k*sinij , person_y(j)-L_j2k*cosij]; %ij右侧空隙的向量坐标
-            Dik_l = [person_x(j)-L_j2k*sinij , person_y(j)+L_j2k*cosij]; %ij左侧空隙的向量坐标
-            k_x = [k_x Dik_r(1) Dik_m(1) Dik_l(1)]; %所有空隙的x坐标
-            k_y = [k_y Dik_r(2) Dik_m(2) Dik_l(2)]; %所有空隙的y坐标
-        end
-        if isempty(k_x) %如果没有空隙，则跳过后续计算
-            continue
-        end
-        % ↓↓计算空隙密度↓↓
-        n_ik = length(k_x); %需要计算的空隙数量
-        Rho_k = zeros(1,n_ik); %初始化空隙密度
-        for kk = 1:n_ik
-            for j = 1:n
-                if j==i %不考虑粒子i对空隙密度的影响
+            Dok_r = [person_x(j)+L_j2k*sinij , person_y(j)-L_j2k*cosij]; %ij右侧空隙的坐标
+            Dok_l = [person_x(j)-L_j2k*sinij , person_y(j)+L_j2k*cosij]; %ij左侧空隙的坐标
+            % ↓↓计算行人粒子对j左右两侧空隙密度的影响↓↓
+            for jj = 1:n
+                if jj==i %不考虑粒子i对空隙密度的影响
                     continue
                 end
-                r2=(k_x(kk)-person_x(j))^2+(k_y(kk)-person_y(j))^2;%计算粒子j与空隙kk之间的距离平方
-                if r2<=h_k^2 %计算核半径范围内粒子j对空隙kk密度的影响
-                    Rho_k(kk) = Rho_k(kk)+m_person*(4/(pi*h_k^8))*(h_k^2-r2)^3;
+                r2_r=(Dok_r(1)-person_x(jj))^2+(Dok_r(2)-person_y(jj))^2;%计算粒子jj与j右侧空隙r之间的距离平方
+                r2_l=(Dok_l(1)-person_x(jj))^2+(Dok_l(2)-person_y(jj))^2;%计算粒子jj与j左侧空隙l之间的距离平方
+                if r2_r<=h_k^2
+                    Rho_k(2*k) = Rho_k(2*k)+m_person*(4/(pi*h_k^8))*(h_k^2-r2_r)^3;
                 end
-                d2_wk = min((k_x(kk)-wall_x).^2+(k_y(kk)-wall_y).^2);%计算空隙与障碍的最小距离（平方）
-                if d2_wk<=h_k^2 %只计算核半径范围内最近障碍粒子对粒子i密度的影响
-                    Rho_k(kk)=Rho_k(kk)+m_wall*(4/(pi*h_k^8))*(h_k^2-d2_wk)^3;
+                if r2_l<=h_k^2
+                    Rho_k(2*k+1) = Rho_k(2*k+1)+m_person*(4/(pi*h_k^8))*(h_k^2-r2_l)^3;
                 end
             end
-        end
+            % ↓↓计算障碍粒子对j左右两侧空隙密度的影响↓↓
+            d2_r = min((Dok_r(1)-wall_x).^2+(Dok_r(2)-wall_y).^2);%计算j右侧空隙与障碍的最小距离（平方）
+            d2_l = min((Dok_l(1)-wall_x).^2+(Dok_l(2)-wall_y).^2);%计算j左侧空隙与障碍的最小距离（平方）
+            if d2_r<=h_k^2 
+                Rho_k(2*k)=Rho_k(2*k)+m_wall*(4/(pi*h_k^8))*(h_k^2-d2_r)^3;
+            end
+            if d2_l<=h_k^2
+                Rho_k(2*k+1)=Rho_k(2*k+1)+m_wall*(4/(pi*h_k^8))*(h_k^2-d2_l)^3;
+            end
+        end    
         % ↓↓选取密度最小的空隙作为超车方向↓↓
         [Rho_min,ind] = min(Rho_k); %返回最小密度及其索引
-        Dik = [k_x(ind)-person_x(i),k_y(ind)-person_y(i)]; %由粒子i指向空隙k的向量
+        if ind==1 %空隙在i前方
+            Dok = Dok_m;
+        else
+            if mod(ind,2)==0 %空隙在某一个ij向量的右侧
+                ind_j = index_pass(floor(ind/2)); %找到那个j在person_x中的索引
+                Dij = [person_x(ind_j)-person_x(i),person_y(ind_j)-person_y(i)];
+                Dij_abs = sqrt(sum(Dij.^2));
+                cosij = Dij(1)/Dij_abs;
+                sinij = Dij(2)/Dij_abs;
+                Dok = [person_x(ind_j)+L_j2k*sinij , person_y(ind_j)-L_j2k*cosij];
+            else %空隙在某一个ij向量的左侧
+                ind_j = index_pass(floor(ind/2)); %找到那个j在person_x中的索引
+                Dij = [person_x(ind_j)-person_x(i),person_y(ind_j)-person_y(i)];
+                Dij_abs = sqrt(sum(Dij.^2));
+                cosij = Dij(1)/Dij_abs;
+                sinij = Dij(2)/Dij_abs;
+                Dok = [person_x(ind_j)-L_j2k*sinij , person_y(ind_j)+L_j2k*cosij];
+            end
+        end        
+        Dik = [Dok(1)-person_x(i),Dok(2)-person_y(i)]; %由粒子i指向空隙k的向量
         Dik_abs = sqrt(sum(Dik.^2)); %粒子i与空隙k的距离
         e_ik = Dik/Dik_abs;
         a_pass = sqrt(sum((ui0-Vi).^2))*sum(e_ik.*ei0)/(tau*Rho_min*Dik_abs^2)*e_ik; %粒子i的超车加速度
         a_pass_x(i) = a_pass(1);
-        a_pass_y(i) = a_pass(2);        
+        a_pass_y(i) = a_pass(2);
     end 
     
     %% 计算行人的位置
@@ -319,20 +363,28 @@ for t=0:dt:T
     end
     %% 绘制图像
     switch condition
-        case 1
-            % 4X50画图
+        case 1 % 4X50画图，行人粒子随机生成          
             index_l = find(exit_x==100);
             index_r = find(exit_x==-50);
             plot(wall_x1,wall_y1,'LineWidth',1,'Color','k');
             hold on;
             plot(wall_x2,wall_y2,'LineWidth',1,'Color','k');
-            hold on;
             plot(person_x(index_l),person_y(index_l),'.r', 'MarkerSize', 10)
             plot(person_x(index_r),person_y(index_r),'.b', 'MarkerSize', 10)
             axis([0 50 -2 5]);%设置显示范围
             if t==0 %只在第1次循环设置图窗位置和大小
                 set(gcf,'position',[0,500,2000,260]);
             end
+        case 2 % 4X50画图，两粒子相向而行
+            plot(wall_x1,wall_y1,'LineWidth',1,'Color','k');
+            hold on;
+            plot(wall_x2,wall_y2,'LineWidth',1,'Color','k');
+            plot(person_x,person_y,'.r', 'MarkerSize', 10)
+            plot(person_x,person_y,'.b', 'MarkerSize', 10)
+            axis([0 50 -2 5]);%设置显示范围
+            if t==0 %只在第1次循环设置图窗位置和大小
+                set(gcf,'position',[0,500,2000,260]);
+            end           
     end
     str_time = sprintf('疏散时间：%.2f',t);
     str_escape = sprintf('疏散人数：%.0f',sum_escape);
