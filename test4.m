@@ -24,24 +24,24 @@ sum_escape=0; %统计已疏散的人数
 P=1; %熟悉逃生路线的行人比例
 P_f=1; %从众程度
 dt=0.02; %时间步长
-t_person = 0.1; %生成粒子的时间间隔
+t_person = 0.5; %生成粒子的时间间隔
 
-% 超车行为相关参数设置(参考文献)
+% 超车行为1.0相关参数设置(参考文献)
 % w_p = 0.3; %区域得分权重
 % w_sa = 0.4; %直线前进的权重
 % w_rl = 0.3; %左右超车或避让的权重
 % search_R = 5; %计算区域得分时的搜索半径
-% a_pass_abs = 30; %超车行为产生的加速度的大小
+% a_pass_abs = 20; %超车行为产生的加速度的大小
 % d_sa = 3;
 % C_rl = 1.5;
 % C_ot = 1.25;
 % Kin = -1;
 % h = 4;
-% a = 30; %转弯角度
+% a = 60; %转弯角度
 
 % 超车行为2.0相关参数
 search_R = 5; %计算区域得分时的搜索半径
-L_j2k = 1; %粒子j与空隙的距离
+L_j2k = 0.6; %粒子j与空隙的距离
 h_k = 2; %计算空隙密度时使用的核半径
 
 % 行人相关参数
@@ -104,8 +104,10 @@ for t=0:dt:T
             end
             r=sqrt((person_x(i) - person_x(j))^2 + (person_y(i) - person_y(j))^2); %两行人粒子之间的距离
             if r<=(Radius(i)+Radius(j))
-                av_x(i) = av_x(i)+u*m_person*((vx(j)-vx(i))/(Rho_person(i)*Rho_person(j)))*(1800*(Radius(i)+Radius(j)-r))/(45*pi*(Radius(i)+Radius(j))^5);
-                av_y(i) = av_y(i)+u*m_person*((vy(j)-vy(i))/(Rho_person(i)*Rho_person(j)))*(1800*(Radius(i)+Radius(j)-r))/(45*pi*(Radius(i)+Radius(j))^5);
+                av_x(i) = av_x(i)+u*m_person*((vx(j)-vx(i))/...%太长了，换一行
+                    (Rho_person(i)*Rho_person(j)))*(1800*(Radius(i)+Radius(j)-r))/(45*pi*(Radius(i)+Radius(j))^5);
+                av_y(i) = av_y(i)+u*m_person*((vy(j)-vy(i))/...
+                    (Rho_person(i)*Rho_person(j)))*(1800*(Radius(i)+Radius(j)-r))/(45*pi*(Radius(i)+Radius(j))^5);
             end
         end
         d=zeros(1,s);%初始化行人粒子i与各障碍粒子的距离
@@ -114,8 +116,10 @@ for t=0:dt:T
         end
         [r,m]=min(d); %r为d中最小值，m为d中最小值的索引
         if r<=Radius(i) %行人与障碍之间的摩擦力产生的加速度
-            av_x(i)=av_x(i)+u*m_wall*((0-vx(i))/(Rho_person(i)*Rho_wall(m)))*(1800*(Radius(i)-r))/(45*pi*(Radius(i))^5);
-            av_y(i)=av_y(i)+u*m_wall*((0-vy(i))/(Rho_person(i)*Rho_wall(m)))*(1800*(Radius(i)-r))/(45*pi*(Radius(i))^5);
+            av_x(i)=av_x(i)+u*m_wall*((0-vx(i))/...
+                (Rho_person(i)*Rho_wall(m)))*(1800*(Radius(i)-r))/(45*pi*(Radius(i))^5);
+            av_y(i)=av_y(i)+u*m_wall*((0-vy(i))/...
+                (Rho_person(i)*Rho_wall(m)))*(1800*(Radius(i)-r))/(45*pi*(Radius(i))^5);
         end
     end
     %% 计算行人主动力产生的加速度
@@ -180,55 +184,69 @@ for t=0:dt:T
     theta=2*pi*rand(1,n);%行人加速度朗之万随机分量的方向，为[0,2*pi]内的随机数
     al_x=P_r*al_x + (1-P_r)*yita.*cos(theta);%行人加速度在x方向上的朗之万随机力分量
     al_y=P_r*al_y + (1-P_r)*yita.*sin(theta);%行人加速度在y方向上的朗之万随机力分量
-    %% 计算行人跟随行为产生的加速度
-    % 引力模型跟随行为V2.1——形式1：j粒子的影响投影到i当前速度与期望速度的速度差方向
+    
+    %% 计算跟随和超车行为产生的加速度
     a_graX = zeros(1,n); %初始化X跟随加速度
     a_graY = zeros(1,n); %初始化Y跟随加速度
-    for i=1:n
-        for j=1:n
-            if i==j
-                continue;
-            end
-            Dij = [person_x(j)-person_x(i),person_y(j)-person_y(i)]; %由i指向j的位置向量Dij
-            Vi = [vx(i),vy(i)]; %粒子i的速度向量Vi
-            Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
-            L = sqrt(sum(Dij.^2)); %向量ij的模，相当于两粒子的距离
-            if L<5 && sum(Dij.*Vi)>0 %当ij之间距离小于5且j位于i的前方时才有跟随行为，进行后续计算
-                Vij = Vj - Vi; %粒子i与粒子j的速度向量差
-                ei0 = [exit_x(i)-person_x(i),exit_y(i)-person_y(i)]/sqrt(sum([exit_x(i)-person_x(i),exit_y(i)-person_y(i)].^2)); %由粒子i指向出口的单位向量
-                ui0 = v0(i) * ei0; %粒子i的期望速度向量
-                eij = Dij/L;%由粒子i指向粒子j的方向向量
-                a_graX(i) = a_graX(i) + sum(Vij.*(ui0-Vi))/tau * sum(eij .* ei0) / (L/(Radius(i)+Radius(j)))^2 * (person_x(j)-person_x(i))/L; %计算X跟随加速度
-                a_graY(i) = a_graY(i) + sum(Vij.*(ui0-Vi))/tau * sum(eij .* ei0) / (L/(Radius(i)+Radius(j)))^2 * (person_y(j)-person_y(i))/L; %计算Y跟随加速度
-            end
-        end
-    end
-    
-    %% 计算超车行为产生的加速度
-    % 超车模型2.0
     a_pass_x = zeros(1,n);
     a_pass_y = zeros(1,n);
     for i=1:n
         k_x = [];
         k_y = [];
-        Vi = [vx(i),vy(i)]; %粒子i的速度向量
-        e_i0 = [exit_x(i)-person_x(i),exit_y(i)-person_y(i)]/sqrt(sum([exit_x(i)-person_x(i),exit_y(i)-person_y(i)].^2));
-        Ui = e_i0*v0(i); %粒子i的期望速度向量
-        % ↓↓计算空隙的坐标（空隙与粒子j的距离由L_j2k控制）↓↓
+        Vi = [vx(i),vy(i)]; %粒子i的速度向量Vi
+        Vi_abs = sqrt(sum(Vi.^2)); %Vi的大小
+        if Vi_abs==0 %静止的粒子没有跟随和超车行为
+            continue
+        end
+        ei0 = [exit_x(i)-person_x(i),exit_y(i)-person_y(i)]/...
+            sqrt(sum([exit_x(i)-person_x(i),exit_y(i)-person_y(i)].^2)); %由粒子i指向出口的单位向量
+        ui0 = v0(i) * ei0; %粒子i的期望速度向量
+        index_follow = zeros(1,n); %i想要跟随的j
+        index_pass = zeros(1,n); %i想要超车的j
         for j=1:n
             if i==j
                 continue
             end
-            Dij = [person_x(j)-person_x(i), person_y(j)-person_y(i)]; %由i指向j的位置向量Dij
-            Dij_abs = sqrt(sum(Dij.^2)); %ij之间的距离
-            if Dij_abs<=search_R %只计算搜索半径内的粒子
-                cosij = Dij(1)/Dij_abs;
-                sinij = Dij(2)/Dij_abs;
-                Dik_r = [Dij(1)+L_j2k*sinij , Dij(2)-L_j2k*cosij]; %ij右侧空隙的向量坐标
-                Dik_l = [Dij(1)-L_j2k*sinij , Dij(2)+L_j2k*cosij]; %ij左侧空隙的向量坐标
-                k_x = [k_x Dik_r(1) Dik_l(1)]; %所有空隙的x坐标
-                k_y = [k_y Dik_r(2) Dik_l(2)]; %所有空隙的y坐标
+            Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
+            Dij = [person_x(j)-person_x(i),person_y(j)-person_y(i)]; %由i指向j的位置向量Dij
+            Dij_abs = sqrt(sum(Dij.^2)); %Dij的大小
+            flag1 = sum((Vi.*Dij))/Vi_abs/Dij_abs; %Vi与Dij的夹角
+            flag2 = sum((Vj-Vi).*(ui0-Vi)); %内积判断
+            if Dij_abs<=search_R && flag1>0.5 %只考虑搜索半径内且夹角小于60°的粒子
+                if flag2>0 
+                    index_follow(j) = j; %储存要跟随的粒子的索引
+                else
+                    index_pass(j) = j; %储存要超越的粒子的索引
+                end
             end          
+        end
+        index_follow(index_follow==0) = []; %删除多余元素
+        index_pass(index_pass==0) = []; %删除多余元素
+        %% 跟随加速度计算
+        for k=1:length(index_follow)
+            j = index_follow(k); %只计算满足条件的粒子j
+            Vj = [vx(j),vy(j)];
+            Vij = Vj - Vi; %粒子i与粒子j的速度向量差
+            Dij = [person_x(j)-person_x(i),person_y(j)-person_y(i)];
+            Dij_abs = sqrt(sum(Dij.^2));
+            eij = Dij/Dij_abs;
+            a_graX(i) = a_graX(i) + sum(Vij.*(ui0-Vi))/tau * sum(eij .* ei0) /...
+                (Dij_abs/(Radius(i)+Radius(j)))^2 * eij(1); %计算X跟随加速度
+            a_graY(i) = a_graY(i) + sum(Vij.*(ui0-Vi))/tau * sum(eij .* ei0) /...
+                (Dij_abs/(Radius(i)+Radius(j)))^2 * eij(2); %计算Y跟随加速度
+        end
+        %% 超车加速度计算    
+        Dik_m = [person_x(i)+L_j2k*Vi(1)/Vi_abs,person_y(i)+L_j2k*Vi(2)/Vi_abs]; %i前方的空隙的向量坐标
+        for k=1:length(index_pass)
+            j = index_pass(k); %只计算满足条件的粒子j
+            Dij = [person_x(j)-person_x(i),person_y(j)-person_y(i)];
+            Dij_abs = sqrt(sum(Dij.^2));
+            cosij = Dij(1)/Dij_abs;
+            sinij = Dij(2)/Dij_abs;
+            Dik_r = [person_x(j)+L_j2k*sinij , person_y(j)-L_j2k*cosij]; %ij右侧空隙的向量坐标
+            Dik_l = [person_x(j)-L_j2k*sinij , person_y(j)+L_j2k*cosij]; %ij左侧空隙的向量坐标
+            k_x = [k_x Dik_r(1) Dik_m(1) Dik_l(1)]; %所有空隙的x坐标
+            k_y = [k_y Dik_r(2) Dik_m(2) Dik_l(2)]; %所有空隙的y坐标
         end
         if isempty(k_x) %如果没有空隙，则跳过后续计算
             continue
@@ -245,7 +263,7 @@ for t=0:dt:T
                 if r2<=h_k^2 %计算核半径范围内粒子j对空隙kk密度的影响
                     Rho_k(kk) = Rho_k(kk)+m_person*(4/(pi*h_k^8))*(h_k^2-r2)^3;
                 end
-                [d2_wk,~] = min((k_x(kk)-wall_x).^2+(k_y(kk)-wall_y).^2);%计算空隙与障碍的最小距离（平方）及索引
+                d2_wk = min((k_x(kk)-wall_x).^2+(k_y(kk)-wall_y).^2);%计算空隙与障碍的最小距离（平方）
                 if d2_wk<=h_k^2 %只计算核半径范围内最近障碍粒子对粒子i密度的影响
                     Rho_k(kk)=Rho_k(kk)+m_wall*(4/(pi*h_k^8))*(h_k^2-d2_wk)^3;
                 end
@@ -254,88 +272,12 @@ for t=0:dt:T
         % ↓↓选取密度最小的空隙作为超车方向↓↓
         [Rho_min,ind] = min(Rho_k); %返回最小密度及其索引
         Dik = [k_x(ind)-person_x(i),k_y(ind)-person_y(i)]; %由粒子i指向空隙k的向量
-        r_ik = sqrt(sum(Dik.^2)); %粒子i与空隙k的距离
-        e_ik = Dik/r_ik;
-        a_pass = sqrt(sum((Ui-Vi).^2))*sum(e_ik.*e_i0)/(tau*Rho_min*r_ik^2)*e_ik; %粒子i的超车加速度
+        Dik_abs = sqrt(sum(Dik.^2)); %粒子i与空隙k的距离
+        e_ik = Dik/Dik_abs;
+        a_pass = sqrt(sum((ui0-Vi).^2))*sum(e_ik.*ei0)/(tau*Rho_min*Dik_abs^2)*e_ik; %粒子i的超车加速度
         a_pass_x(i) = a_pass(1);
-        a_pass_y(i) = a_pass(2);
-    end
-    
-    
-    
-    
-    %% 参考文献中的超车模型
-%     Pl = 0; %左侧区域的得分
-%     Pm = 0; %中间区域的得分
-%     Pr = 0; %右侧区域的得分   
-%     a_pass_x = zeros(1,n);
-%     a_pass_y = zeros(1,n);    
-%     for i=1:n
-%         Vi = [vx(i),vy(i)]; %粒子i的速度向量
-%         Vi_abs = sqrt(sum(Vi.^2)); %粒子i的速度大小
-%         if Vi_abs==0
-%             continue
-%         end
-%         for j=1:n
-%             if i==j
-%                 continue
-%             end
-%             Dij = [person_x(j)-person_x(i), person_y(j)-person_y(i)]; %由i指向j的位置向量Dij
-%             Dij_abs = sqrt(sum(Dij.^2)); %ij之间的距离
-%             if Dij_abs<=search_R
-%                 VxD = Vi(1)*Dij(2)-Vi(2)*Dij(1); %Vi与Dij的叉乘
-%                 switch (VxD>=0)
-%                     case 1 %VxD>=0说明Dij在Vi的逆时针方向，即j在i的左侧
-%                         cos_VD = sum(Dij.*Vi)/(Dij_abs*Vi_abs);
-%                         if cos_VD<0.5 %夹角大于60°不计算
-%                             continue
-%                         else
-%                             if cos_VD<(sqrt(3)/2) %夹角在30~60之间，属于Pl区域
-%                                 Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
-%                                 Ui = [exit_x(i)-person_x(i),exit_y(i)-person_y(i)]/sqrt(sum([exit_x(i)-person_x(i),exit_y(i)-person_y(i)].^2))*v0(i); %粒子i的期望速度向量
-%                                 Pl = Pl + (Kin*Vi_abs^h*abs(sum((Vj-Vi).*Ui))-C_ot)/max(0.2,Dij_abs-Radius(i)-Radius(j));
-%                             else %夹角在0~30之间，同时属于Pl和Pm区域
-%                                 Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
-%                                 Ui = [exit_x(i)-person_x(i),exit_y(i)-person_y(i)]/sqrt(sum([exit_x(i)-person_x(i),exit_y(i)-person_y(i)].^2))*v0(i); %粒子i的期望速度向量
-%                                 Pl = Pl + (Kin*Vi_abs^h*abs(sum((Vj-Vi).*Ui))-C_ot)/max(0.2,Dij_abs-Radius(i)-Radius(j));
-%                                 Pm = Pm + (Kin*Vi_abs^h*abs(sum((Vj-Vi).*Ui))-C_ot)/max(0.2,Dij_abs-Radius(i)-Radius(j));
-%                             end
-%                         end
-%                     case 0 %VxD<0说明Dij在Vi的顺时针方向，即j在i的右侧
-%                         cos_VD = sum(Dij.*Vi)/(Dij_abs*Vi_abs);
-%                         if cos_VD<0.5 %夹角大于60°不计算
-%                             continue
-%                         else
-%                             if cos_VD<(sqrt(3)/2) %夹角在30~60之间，属于Pr区域
-%                                 Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
-%                                 Ui = [exit_x(i)-person_x(i),exit_y(i)-person_y(i)]/sqrt(sum([exit_x(i)-person_x(i),exit_y(i)-person_y(i)].^2))*v0(i); %粒子i的期望速度向量
-%                                 Pr = Pr + (Kin*Vi_abs^h*abs(sum((Vj-Vi).*Ui))-C_ot)/max(0.2,Dij_abs-Radius(i)-Radius(j));
-%                             else %夹角在0~30之间，同时属于Pr和Pm区域
-%                                 Vj = [vx(j),vy(j)]; %粒子j的速度向量Vj
-%                                 Ui = [exit_x(i)-person_x(i),exit_y(i)-person_y(i)]/sqrt(sum([exit_x(i)-person_x(i),exit_y(i)-person_y(i)].^2))*v0(i); %粒子i的期望速度向量
-%                                 Pr = Pr + (Kin*Vi_abs^h*abs(sum((Vj-Vi).*Ui))-C_ot)/max(0.2,Dij_abs-Radius(i)-Radius(j));
-%                                 Pm = Pm + (Kin*Vi_abs^h*abs(sum((Vj-Vi).*Ui))-C_ot)/max(0.2,Dij_abs-Radius(i)-Radius(j));
-%                             end
-%                         end
-%                 end
-%             end
-%         end
-%         S_l = w_p*Pl+w_rl*(C_rl-Vi_abs)*(-1);
-%         S_m = w_p*Pm+w_sa*d_sa*Vi_abs;
-%         S_r = w_p*Pr+w_rl*(C_rl-Vi_abs);
-%         [~,index] = max([S_l,S_m,S_r]); %获取最大值的索引
-%         Vi_0 = Vi/Vi_abs; %粒子i当前速度的单位向量       
-%         switch index
-%             case 1 %最大值为S_l，产生的超车加速度方向为Vi逆时针旋转a°
-%                 a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(a)-Vi_0(2)*sind(a));
-%                 a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(a)+Vi_0(2)*cosd(a));
-%             case 2 %最大值为S_m，无超车行为
-%                 continue
-%             case 3 %最大值为S_r，产生的超车加速度方向为Vi顺时针旋转a°
-%                 a_pass_x(i) = a_pass_abs*(Vi_0(1)*cosd(-a)-Vi_0(2)*sind(-a));
-%                 a_pass_y(i) = a_pass_abs*(Vi_0(1)*sind(-a)+Vi_0(2)*cosd(-a));
-%         end
-%     end
+        a_pass_y(i) = a_pass(2);        
+    end 
     
     %% 计算行人的位置
     ax = am_x+ar_x+ae_x+av_x+al_x+a_graX+a_pass_x;%1行n列，t时刻各行人粒子x方向的合加速度
