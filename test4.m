@@ -3,8 +3,10 @@ clear;
 % 2021-03-10
 % 引力跟随行为模型V2.1：j粒子的影响投影到i当前速度与期望速度的速度差方向
 % 双向行人流超车行为模拟，4*50m通道及连续双向行人
+% 2021-03-21
+% 更改速度-密度统计方式，修改右侧空隙密度和超车加速度大小
 clear;
-condition = 1; %选择模拟场景
+condition = 2; %选择模拟场景
 %% 初始化参数
 switch condition
     case 1 %随机生成行人
@@ -36,7 +38,7 @@ switch condition
         wall_y = [wall_y1, wall_y2];
         s=length(wall_x);
         % 行人相关参数
-        person_x = [10 40]; %行人的x坐标
+        person_x = [20 30]; %行人的x坐标
         person_y = [2 2]; %行人的y坐标
         exit_x = [100 -50]; %出口的x坐标
         exit_y = [2 2]; %出口的y坐标
@@ -57,7 +59,7 @@ sum_escape=0; %统计已疏散的人数
 P=1; %熟悉逃生路线的行人比例
 P_f=1; %从众程度
 dt=0.02; %时间步长
-t_person = 0.5; %生成粒子的时间间隔
+t_person = 0.2; %生成粒子的时间间隔
 
 % 超车行为2.0相关参数
 search_R = 5; %计算区域得分时的搜索半径
@@ -80,7 +82,7 @@ density_area = [];
 for t=0:dt:T
     %% 随机生成行人粒子
     if condition==1 && mod(t,t_person)==0 %每隔固定的时间随机生成一次
-        person_x_temp = [-0.5-5*rand 50.5+5*rand]; %在左右两侧各生成一个粒子
+        person_x_temp = [20-5*rand 30+5*rand]; %在左右两侧各生成一个粒子
         person_y_temp = [0.3+3.4*rand 0.3+3.4*rand];
         person_x = [person_x person_x_temp];
         person_y = [person_y person_y_temp];
@@ -91,7 +93,8 @@ for t=0:dt:T
         vy = [vy 0 0];
         temp1 = rand;
         temp2 = rand;
-        v0 = [v0 1.2*(temp1>0.5)+1.8*(temp1<0.5) 1.2*(temp2>0.5)+1.8*(temp2<0.5)]; %高速行人和低速行人随机分配
+%         v0 = [v0 1.2*(temp1>0.5)+1.8*(temp1<0.5) 1.2*(temp2>0.5)+1.8*(temp2<0.5)]; %高速行人和低速行人随机分配
+        v0 = [v0 1.36 1.36];
         Radius = [Radius 0.3 0.3];
     end
     n=length(person_x);
@@ -278,7 +281,7 @@ for t=0:dt:T
                 r2_r=(Dok_r(1)-person_x(jj))^2+(Dok_r(2)-person_y(jj))^2;%计算粒子jj与j右侧空隙r之间的距离平方
                 r2_l=(Dok_l(1)-person_x(jj))^2+(Dok_l(2)-person_y(jj))^2;%计算粒子jj与j左侧空隙l之间的距离平方
                 if r2_r<=h_k^2
-                    Rho_k(2*k) = Rho_k(2*k)+m_person*(4/(pi*h_k^8))*(h_k^2-r2_r)^3;
+                    Rho_k(2*k) = Rho_k(2*k)+m_person*(4/(pi*h_k^8))*(h_k^2-r2_r)^3 / 1.2;
                 end
                 if r2_l<=h_k^2
                     Rho_k(2*k+1) = Rho_k(2*k+1)+m_person*(4/(pi*h_k^8))*(h_k^2-r2_l)^3;
@@ -288,7 +291,7 @@ for t=0:dt:T
             d2_r = min((Dok_r(1)-wall_x).^2+(Dok_r(2)-wall_y).^2);%计算j右侧空隙与障碍的最小距离（平方）
             d2_l = min((Dok_l(1)-wall_x).^2+(Dok_l(2)-wall_y).^2);%计算j左侧空隙与障碍的最小距离（平方）
             if d2_r<=h_k^2 
-                Rho_k(2*k)=Rho_k(2*k)+m_wall*(4/(pi*h_k^8))*(h_k^2-d2_r)^3;
+                Rho_k(2*k)=Rho_k(2*k)+m_wall*(4/(pi*h_k^8))*(h_k^2-d2_r)^3 / 1.2;
             end
             if d2_l<=h_k^2
                 Rho_k(2*k+1)=Rho_k(2*k+1)+m_wall*(4/(pi*h_k^8))*(h_k^2-d2_l)^3;
@@ -318,7 +321,7 @@ for t=0:dt:T
         Dik = [Dok(1)-person_x(i),Dok(2)-person_y(i)]; %由粒子i指向空隙k的向量
         Dik_abs = sqrt(sum(Dik.^2)); %粒子i与空隙k的距离
         e_ik = Dik/Dik_abs;
-        a_pass = sqrt(sum((ui0-Vi).^2))*sum(e_ik.*ei0)/(tau*Rho_min*Dik_abs^2)*e_ik; %粒子i的超车加速度
+        a_pass = 100*sqrt(sum((ui0-Vi).^2))*sum(e_ik.*ei0)/(tau*Rho_min*Dik_abs^2)*e_ik; %粒子i的超车加速度
         a_pass_x(i) = a_pass(1);
         a_pass_y(i) = a_pass(2);
     end 
@@ -336,22 +339,27 @@ for t=0:dt:T
     person_y = person_y+vy*dt; %计算y方向的位移
     
     %% 统计行人速度-密度图
-    %     index = find(person_x>49 & person_x<51); %寻找在x=46~52区间范围内的粒子
-    %     index_blue = find(index>person_l_num); %在x=46~52区间范围内的蓝色粒子
-    %     v_mean = mean(vx(index(index_blue))); %计算蓝色粒子们的平均前进速度
-    %     if v_mean <= 0
-    %         count = count+1; %进行速度-密度统计
-    %         v_sum = v_sum+v_mean; %几个步长内平均速度和
-    %         density_mean = length(index) / (2*4); %计算区域密度
-    %         density_sum = density_sum+density_mean; %几个步长内区域密度之和
-    %     end
-    %     if count == 20
-    %         v_blue = [v_blue, v_sum/count];
-    %         density_area = [density_area, density_sum/count];
-    %         count = 0;
-    %         v_sum = 0;
-    %         density_sum = 0;
-    %     end
+    temp_index = find(person_x>22 & person_x<28 & exit_x==100); %寻找在区间范围内且期望往右运动的粒子
+    if length(temp_index)>2
+        if count == 0
+            index_area = find(person_x>22 & person_x<28); %寻找x在22~28区间范围内的粒子
+            index_right = find(person_x>22 & person_x<28 & exit_x==100); %寻找在区间范围内且期望往右运动的粒子
+            right_x0 = person_x(index_right); %记录统计初始时刻向右运动粒子坐标
+            count = count + 1;
+        elseif count == 20
+            right_xt = person_x(index_right); %记录统计的末时刻向右运动粒子坐标
+            v_mean = (right_xt-right_x0)/(count*dt); %计算统计的粒子在几个时间步长内的平均速度
+            if mean(v_mean) > 2 || mean(v_mean) <0.3
+                a = mean(v_mean);
+            end
+            density_mean = length(index_area) / (6*4); %计算区域密度
+            count = 0;
+            v_blue = [v_blue, mean(v_mean)];
+            density_area = [density_area, density_mean];
+        else
+            count = count + 1;
+        end
+    end
     
     %% 统计疏散人数，并抹掉已疏散粒子的所有信息
     for i=1:n
