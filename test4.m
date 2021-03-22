@@ -6,7 +6,7 @@ clear;
 % 2021-03-21
 % 更改速度-密度统计方式，修改右侧空隙密度和超车加速度大小
 clear;
-condition = 2; %选择模拟场景
+condition = 1; %选择模拟场景
 %% 初始化参数
 switch condition
     case 1 %随机生成行人
@@ -108,7 +108,7 @@ for t=0:dt:T
         person_y = [person_y person_y_temp];
         exit_x = [exit_x 100 -50];
         exit_y = [exit_y 2 2];
-        end_x = [end_x 50 0];
+        end_x = [end_x 35 15];
         vx = [vx 0 0];
         vy = [vy 0 0];
         temp1 = rand;
@@ -321,38 +321,43 @@ for t=0:dt:T
             if d2_l<=h_wk^2
                 Rho_k(2*k+1)=Rho_k(2*k+1)+m_wall*(4/(pi*h_wk^8))*(h_wk^2-d2_l)^3;
             end
-        end    
-        % ↓↓选取密度最小的空隙作为超车方向↓↓
-        [Rho_min,ind] = min(Rho_k); %返回最小密度及其索引
-        if length(ind)>1
-            ind = min(ind);
         end
-        % ↓↓判断空隙的位置↓↓
-        if ind==1 %空隙在i前方
-            Dok = Dok_m;
-        else
-            if mod(ind,2)==0 %空隙在某一个ij向量的右侧
-                ind_j = index_pass(floor(ind/2)); %找到那个j在person_x中的索引
-                Dij = [person_x(ind_j)-person_x(i),person_y(ind_j)-person_y(i)];
-                Dij_abs = sqrt(sum(Dij.^2));
-                cosij = Dij(1)/Dij_abs;
-                sinij = Dij(2)/Dij_abs;
-                Dok = [person_x(ind_j)+L_j2k*sinij , person_y(ind_j)-L_j2k*cosij];
-            else %空隙在某一个ij向量的左侧
-                ind_j = index_pass(floor(ind/2)); %找到那个j在person_x中的索引
-                Dij = [person_x(ind_j)-person_x(i),person_y(ind_j)-person_y(i)];
-                Dij_abs = sqrt(sum(Dij.^2));
-                cosij = Dij(1)/Dij_abs;
-                sinij = Dij(2)/Dij_abs;
-                Dok = [person_x(ind_j)-L_j2k*sinij , person_y(ind_j)+L_j2k*cosij];
+        % ↓↓计算每个空隙对i的吸引力↓↓
+        n_k = length(Rho_k);
+        Dik = cell(1,n_k); %由i指向空隙的位置向量（定义元胞数组）
+        eik = cell(1,n_k); %Dik的单位向量（定义元胞数组）
+        Dik_abs = zeros(1,n_k);%向量ik的大小
+        a_pass_abs = zeros(1,n_k); %超车加速度的大小
+        A_k = 100*sqrt(sum((ui0-Vi).^2)); %超车加速度系数
+        for k=1:n_k
+            if k==1 %空隙在i前方
+                Dok = Dok_m;
+            else
+                if mod(k,2)==0 %空隙在某一个ij向量的右侧
+                    ind_j = index_pass(k/2); %找到那个j在person_x中的索引
+                    Dij = [person_x(ind_j)-person_x(i),person_y(ind_j)-person_y(i)];
+                    Dij_abs = sqrt(sum(Dij.^2));
+                    cosij = Dij(1)/Dij_abs;
+                    sinij = Dij(2)/Dij_abs;
+                    Dok = [person_x(ind_j)+L_j2k*sinij , person_y(ind_j)-L_j2k*cosij];
+                else %空隙在某一个ij向量的左侧
+                    ind_j = index_pass(floor(k/2)); %找到那个j在person_x中的索引
+                    Dij = [person_x(ind_j)-person_x(i),person_y(ind_j)-person_y(i)];
+                    Dij_abs = sqrt(sum(Dij.^2));
+                    cosij = Dij(1)/Dij_abs;
+                    sinij = Dij(2)/Dij_abs;
+                    Dok = [person_x(ind_j)-L_j2k*sinij , person_y(ind_j)+L_j2k*cosij];
+                end
             end
+            Dik{k} = [Dok(1)-person_x(i),Dok(2)-person_y(i)];
+            Dik_abs(k) = sqrt(sum(Dik{k}.^2)); 
+            eik{k} = Dik{k}/Dik_abs(k);
+            a_pass_abs(k) = A_k*sum(eik{k}.*ei0)/(tau*Rho_k(k)*Dik_abs(k)^2); %粒子i的超车加速度
         end
-        Dik = [Dok(1)-person_x(i),Dok(2)-person_y(i)]; %由粒子i指向空隙k的向量
-        Dik_abs = sqrt(sum(Dik.^2)); %粒子i与空隙k的距离
-        e_ik = Dik/Dik_abs;
-        a_pass = 100*sqrt(sum((ui0-Vi).^2))*sum(e_ik.*ei0)/(tau*Rho_min*Dik_abs^2)*e_ik; %粒子i的超车加速度
+        [a_pass_max,ind] = max(a_pass_abs);
+        a_pass = a_pass_max*eik{ind};
         a_pass_x(i) = a_pass(1);
-        a_pass_y(i) = a_pass(2);        
+        a_pass_y(i) = a_pass(2);
         %% 超车加速度计算（以i为基准生成空隙）
         
     end 
