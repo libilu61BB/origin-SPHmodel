@@ -4,7 +4,7 @@ clear;
 % 引力跟随行为模型V2.1：j粒子的影响投影到i当前速度与期望速度的速度差方向
 % 双向行人流超车行为模拟，4*50m通道及连续双向行人
 clear;
-condition = 1; %选择模拟场景
+condition = 2; %选择模拟场景
 %% 初始化参数
 switch condition
     case 1 %随机生成行人
@@ -36,7 +36,7 @@ switch condition
         wall_y = [wall_y1, wall_y2];
         s=length(wall_x);
         % 行人相关参数
-        person_x = [10 40]; %行人的x坐标
+        person_x = [20 30]; %行人的x坐标
         person_y = [2 2]; %行人的y坐标
         exit_x = [100 -50]; %出口的x坐标
         exit_y = [2 2]; %出口的y坐标
@@ -44,7 +44,26 @@ switch condition
         vx = [0 0]; %行人速度在x方向上的分量
         vy = [0 0]; %行人速度在y方向上的分量
         v0 = [1.2 1.2]; %行人的期望速度
-        Radius = [0.3 0.3]; %行人的半径       
+        Radius = [0.3 0.3]; %行人的半径
+    case 3
+        % 障碍物相关参数
+        wall_x1 = (-20:0.1:70);
+        wall_y1 = zeros(1, length(wall_x1));
+        wall_x2 = (-20:0.1:70);
+        wall_y2 = 4 * ones(1, length(wall_x2));
+        wall_x = [wall_x1, wall_x2];
+        wall_y = [wall_y1, wall_y2];
+        s=length(wall_x);
+        % 行人相关参数
+        person_x = [0 5]; %行人的x坐标
+        person_y = [2 2]; %行人的y坐标
+        exit_x = [100 100]; %出口的x坐标
+        exit_y = [2 2]; %出口的y坐标
+        end_x = [50 50]; %清除点的坐标
+        vx = [0 0]; %行人速度在x方向上的分量
+        vy = [0 0]; %行人速度在y方向上的分量
+        v0 = [1.8 1.2]; %行人的期望速度
+        Radius = [0.3 0.3]; %行人的半径
 end
 
 h1=5; %计算密度和排斥力时使用的核半径
@@ -61,15 +80,16 @@ t_person = 0.5; %生成粒子的时间间隔
 
 % 超车行为2.0相关参数
 search_R = 5; %计算区域得分时的搜索半径
-L_j2k = 0.6; %粒子j与空隙的距离
-h_k = 2; %计算空隙密度时使用的核半径
-a = 0.8; %i前方空隙的密度修正指数
+L_j2k = 1; %粒子j与空隙的距离
+h_k = 5; %计算行人对空隙密度影响时使用的核半径
+h_wk = 0.3; %计算障碍对空隙密度影响时使用的核半径
+a = 1; %i前方空隙的密度修正指数
 
 % 朗之万随机力相关参数
 P_r=0.5^dt;%加速度朗之万分量的时间权重
 A=10;%加速度朗之万分量的量级
 
-%% 速度-密度统计设置
+% 速度-密度统计设置
 count = 0; %速度密度统计计数
 v_sum = 0; %平均速度和
 density_sum = 0; %平均密度和
@@ -95,15 +115,18 @@ for t=0:dt:T
         Radius = [Radius 0.3 0.3];
     end
     n=length(person_x);
+    
     %% 郎之万随机力相关计算
     al=A*rand(1,n);%行人加速度的朗之万随机分量，为服从高斯分布的随机数
     al_theta=2*pi*rand(1,n);%行人加速度朗之万随机分量的方向，为[0,2*pi]内的随机数
     al_x=al.*cos(al_theta);%行人加速度在x方向上的朗之万随机力分量
     al_y=al.*sin(al_theta);%行人加速度在y方向上的朗之万随机力分量
+    
     %% 计算排斥力和挤压力产生的加速度
     [Rho_person,Rho_wall]=density(person_x,person_y,wall_x,wall_y,h1);%调用函数density计算t时刻的密度
     [ar_x,ar_y]=a_repul(person_x,person_y,wall_x,wall_y,Rho_person ,Rho_wall,Radius,h1);%调用函数a_repul计算排斥力产生的加速度
     [ae_x,ae_y]=a_extru(person_x,person_y,wall_x,wall_y,Rho_person,Rho_wall,Radius,h1);%调用函数a_extru计算挤压力产生的加速度
+    
     %% 计算摩擦力产生的加速度
     av_x=zeros(1,n);%初始化摩擦力产生的x方向加速度
     av_y=zeros(1,n);%初始化摩擦力产生的y方向加速度
@@ -132,6 +155,7 @@ for t=0:dt:T
                 (Rho_person(i)*Rho_wall(m)))*(1800*(Radius(i)-r))/(45*pi*(Radius(i))^5);
         end
     end
+    
     %% 计算行人主动力产生的加速度
     e_x=zeros(1,n); %初始化方向向量的x坐标
     e_y=zeros(1,n); %初始化方向向量的y坐标
@@ -189,6 +213,7 @@ for t=0:dt:T
             am_y(i)=max((v0(i)*e_y(i)-vy(i))/dt,-20);
         end
     end
+    
     %% 计算朗之万随机加速度
     yita=A*rand(1,n);%行人加速度的朗之万随机分量，为服从高斯分布的随机数
     theta=2*pi*rand(1,n);%行人加速度朗之万随机分量的方向，为[0,2*pi]内的随机数
@@ -247,7 +272,7 @@ for t=0:dt:T
             a_graY(i) = a_graY(i) + sum(Vij.*(ui0-Vi))/tau * sum(eij .* ei0) /...
                 (Dij_abs/(Radius(i)+Radius(j)))^2 * eij(2); %计算Y跟随加速度
         end
-        %% 超车加速度计算
+        %% 超车加速度计算（以j为基准生成空隙）
         Dok_m = [person_x(i)+L_j2k*Vi(1)/Vi_abs,person_y(i)+L_j2k*Vi(2)/Vi_abs]; %i前方空隙的坐标（由坐标原点o指向空隙k,下同）
         Rho_k = zeros(1,2*n_pass+1); %初始化空隙密度
         % ↓↓计算i前方的空隙密度【储存在Rho_k(1)中】↓↓
@@ -258,8 +283,8 @@ for t=0:dt:T
             end
         end
         d2_m = min((Dok_m(1)-wall_x).^2+(Dok_m(2)-wall_y).^2);%计算空隙与障碍的最小距离（平方）
-        if d2_m<=h_k^2 %只计算核半径范围内最近障碍粒子对粒子i密度的影响
-            Rho_k(1)=Rho_k(1)+a*m_wall*(4/(pi*h_k^8))*(h_k^2-d2_m)^3;
+        if d2_m<=h_wk^2 %只计算核半径范围内最近障碍粒子对粒子i密度的影响
+            Rho_k(1)=Rho_k(1)+a*m_wall*(4/(pi*h_wk^8))*(h_wk^2-d2_m)^3;
         end
         % ↓↓计算j左右两侧空隙的密度【右侧空隙密度储存在Rho_k(2*k)中，左侧空隙密度储存在Rho_k(2*k+1)中】↓↓
         for k=1:length(index_pass)
@@ -287,15 +312,19 @@ for t=0:dt:T
             % ↓↓计算障碍粒子对j左右两侧空隙密度的影响↓↓
             d2_r = min((Dok_r(1)-wall_x).^2+(Dok_r(2)-wall_y).^2);%计算j右侧空隙与障碍的最小距离（平方）
             d2_l = min((Dok_l(1)-wall_x).^2+(Dok_l(2)-wall_y).^2);%计算j左侧空隙与障碍的最小距离（平方）
-            if d2_r<=h_k^2 
-                Rho_k(2*k)=Rho_k(2*k)+m_wall*(4/(pi*h_k^8))*(h_k^2-d2_r)^3;
+            if d2_r<=h_wk^2 
+                Rho_k(2*k)=Rho_k(2*k)+m_wall*(4/(pi*h_wk^8))*(h_wk^2-d2_r)^3;
             end
-            if d2_l<=h_k^2
-                Rho_k(2*k+1)=Rho_k(2*k+1)+m_wall*(4/(pi*h_k^8))*(h_k^2-d2_l)^3;
+            if d2_l<=h_wk^2
+                Rho_k(2*k+1)=Rho_k(2*k+1)+m_wall*(4/(pi*h_wk^8))*(h_wk^2-d2_l)^3;
             end
         end    
         % ↓↓选取密度最小的空隙作为超车方向↓↓
         [Rho_min,ind] = min(Rho_k); %返回最小密度及其索引
+        if length(ind)>1
+            ind = min(ind);
+        end
+        % ↓↓判断空隙的位置↓↓
         if ind==1 %空隙在i前方
             Dok = Dok_m;
         else
@@ -314,16 +343,19 @@ for t=0:dt:T
                 sinij = Dij(2)/Dij_abs;
                 Dok = [person_x(ind_j)-L_j2k*sinij , person_y(ind_j)+L_j2k*cosij];
             end
-        end        
+        end
         Dik = [Dok(1)-person_x(i),Dok(2)-person_y(i)]; %由粒子i指向空隙k的向量
         Dik_abs = sqrt(sum(Dik.^2)); %粒子i与空隙k的距离
         e_ik = Dik/Dik_abs;
-        a_pass = sqrt(sum((ui0-Vi).^2))*sum(e_ik.*ei0)/(tau*Rho_min*Dik_abs^2)*e_ik; %粒子i的超车加速度
+        a_pass = 100*sqrt(sum((ui0-Vi).^2))*sum(e_ik.*ei0)/(tau*Rho_min*Dik_abs^2)*e_ik; %粒子i的超车加速度
         a_pass_x(i) = a_pass(1);
-        a_pass_y(i) = a_pass(2);
+        a_pass_y(i) = a_pass(2);        
+        %% 超车加速度计算（以i为基准生成空隙）
+        
     end 
     
     %% 计算行人的位置
+    % 超车加速度和跟随加速度分解到xy轴上
     ax = am_x+ar_x+ae_x+av_x+al_x+a_graX+a_pass_x;%1行n列，t时刻各行人粒子x方向的合加速度
     ay = am_y+ar_y+ae_y+av_y+al_y+a_graY+a_pass_y;%1行n列，t时刻各行人粒子y方向的合加速度
     vx = vx+ax*dt; %计算下一时刻的x方向速度
@@ -353,9 +385,9 @@ for t=0:dt:T
     %         density_sum = 0;
     %     end
     
-    %% 统计疏散人数，并抹掉已疏散粒子的所有信息
+    % ↓↓统计疏散人数，并抹掉已疏散粒子的所有信息↓↓
     for i=1:n
-        if (person_x(i)-end_x(i))^2<=0.001
+        if (person_x(i)-end_x(i))^2<=0.1
             sum_escape = sum_escape+1;
             person_x(i) = nan;
             person_y(i) = nan;
@@ -384,7 +416,17 @@ for t=0:dt:T
             axis([0 50 -2 5]);%设置显示范围
             if t==0 %只在第1次循环设置图窗位置和大小
                 set(gcf,'position',[0,500,2000,260]);
-            end           
+            end
+        case 3 % 4X50画图，两粒子同向而行
+            plot(wall_x1,wall_y1,'LineWidth',1,'Color','k');
+            hold on;
+            plot(wall_x2,wall_y2,'LineWidth',1,'Color','k');
+            plot(person_x,person_y,'.r', 'MarkerSize', 10)
+            plot(person_x,person_y,'.b', 'MarkerSize', 10)
+            axis([0 50 -2 5]);%设置显示范围
+            if t==0 %只在第1次循环设置图窗位置和大小
+                set(gcf,'position',[0,500,2000,260]);
+            end
     end
     str_time = sprintf('疏散时间：%.2f',t);
     str_escape = sprintf('疏散人数：%.0f',sum_escape);
