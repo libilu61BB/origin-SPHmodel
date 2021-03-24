@@ -6,7 +6,7 @@ clear;
 % 2021-03-21
 % 更改速度-密度统计方式，修改右侧空隙密度和超车加速度大小
 clear;
-condition = 1; %选择模拟场景
+condition = 4; %选择模拟场景
 %% 初始化参数
 switch condition
     case 1 %随机生成行人
@@ -66,6 +66,25 @@ switch condition
         vy = [0 0]; %行人速度在y方向上的分量
         v0 = [1.8 1.2]; %行人的期望速度
         Radius = [0.3 0.3]; %行人的半径
+    case 4 % 单向流验证
+        % 障碍物相关参数
+        wall_x1 = (-5:0.1:12);
+        wall_y1 = zeros(1, length(wall_x1));
+        wall_x2 = (-5:0.1:12);
+        wall_y2 = 3 * ones(1, length(wall_x2));
+        wall_x = [wall_x1, wall_x2];
+        wall_y = [wall_y1, wall_y2];
+        s=length(wall_x);
+        % 行人相关参数
+        person_x = []; %行人的x坐标
+        person_y = []; %行人的y坐标
+        exit_x = []; %出口的x坐标
+        exit_y = []; %出口的y坐标
+        end_x = []; %清除点的坐标
+        vx = []; %行人速度在x方向上的分量
+        vy = []; %行人速度在y方向上的分量
+        v0 = []; %行人的期望速度
+        Radius = []; %行人的半径
 end
 
 h1=5; %计算密度和排斥力时使用的核半径
@@ -115,6 +134,22 @@ for t=0:dt:T
         temp2 = rand;
 %         v0 = [v0 1.2*(temp1>0.5)+1.8*(temp1<0.5) 1.2*(temp2>0.5)+1.8*(temp2<0.5)]; %高速行人和低速行人随机分配
         v0 = [v0 1.36 1.36];
+        Radius = [Radius 0.3 0.3];
+    end
+    if condition==4 && mod(t,t_person)==0 %每隔固定的时间随机生成一次
+        person_x_temp = [-2*rand -2*rand]; %在左右两侧各生成一个粒子
+        person_y_temp = [0.3+2.4*rand 0.3+2.4*rand];
+        person_x = [person_x person_x_temp];
+        person_y = [person_y person_y_temp];
+        exit_x = [exit_x 100 100];
+        exit_y = [exit_y 1.5 1.5];
+        end_x = [end_x 12 12];
+        vx = [vx 0 0];
+        vy = [vy 0 0];
+        temp1 = rand;
+        temp2 = rand;
+%         v0 = [v0 1.2*(temp1>0.5)+1.8*(temp1<0.5) 1.2*(temp2>0.5)+1.8*(temp2<0.5)]; %高速行人和低速行人随机分配
+        v0 = [v0 1.55+0.36*rand-0.36 1.55+0.36*rand-0.36];
         Radius = [Radius 0.3 0.3];
     end
     n=length(person_x);
@@ -270,9 +305,9 @@ for t=0:dt:T
             Dij = [person_x(j)-person_x(i),person_y(j)-person_y(i)];
             Dij_abs = sqrt(sum(Dij.^2));
             eij = Dij/Dij_abs;
-            a_graX(i) = a_graX(i) + sum(Vij.*(ui0-Vi))/tau * sum(eij .* ei0) /...
+            a_graX(i) = a_graX(i) + 1*sum(Vij.*(ui0-Vi))/tau * sum(eij .* ei0) /...
                 (Dij_abs/(Radius(i)+Radius(j)))^2 * eij(1); %计算X跟随加速度
-            a_graY(i) = a_graY(i) + sum(Vij.*(ui0-Vi))/tau * sum(eij .* ei0) /...
+            a_graY(i) = a_graY(i) + 1*sum(Vij.*(ui0-Vi))/tau * sum(eij .* ei0) /...
                 (Dij_abs/(Radius(i)+Radius(j)))^2 * eij(2); %计算Y跟随加速度
         end
         %% 超车加速度计算（以j为基准生成空隙）
@@ -376,36 +411,57 @@ for t=0:dt:T
     person_y = person_y+vy*dt; %计算y方向的位移
     
     %% 统计行人速度-密度图
-    temp_index = find(person_x>22 & person_x<28 & exit_x==100); %寻找在区间范围内且期望往右运动的粒子
-    if length(temp_index)>2
-        if count == 0
-            index_area = find(person_x>22 & person_x<28); %寻找x在22~28区间范围内的粒子
-            index_right = find(person_x>22 & person_x<28 & exit_x==100); %寻找在区间范围内且期望往右运动的粒子
-            right_x0 = person_x(index_right); %记录统计初始时刻向右运动粒子坐标
-            count = count + 1;
-        elseif count == 20
-            right_xt = person_x(index_right); %记录统计的末时刻向右运动粒子坐标
-            v_mean = (right_xt-right_x0)/(count*dt); %计算统计的粒子在几个时间步长内的平均速度
-            if mean(v_mean) > 2 || mean(v_mean) <0.3
-                a = mean(v_mean);
+    switch condition
+        case 1 %双向流行人速度-密度图统计
+            temp_index = find(person_x>22 & person_x<28 & exit_x==100); %寻找在区间范围内且期望往右运动的粒子
+            if length(temp_index)>2
+                if count == 0
+                    index_area = find(person_x>22 & person_x<28); %寻找x在22~28区间范围内的粒子
+                    index_right = find(person_x>22 & person_x<28 & exit_x==100); %寻找在区间范围内且期望往右运动的粒子
+                    right_x0 = person_x(index_right); %记录统计初始时刻向右运动粒子坐标
+                    count = count + 1;
+                elseif count == 20
+                    right_xt = person_x(index_right); %记录统计的末时刻向右运动粒子坐标
+                    v_mean = (right_xt-right_x0)/(count*dt); %计算统计的粒子在几个时间步长内的平均速度
+                    if mean(v_mean) > 2 || mean(v_mean) <0.3
+                        a = mean(v_mean);
+                    end
+                    density_mean = length(index_area) / (6*4); %计算区域密度
+                    count = 0;
+                    v_blue = [v_blue, mean(v_mean)];
+                    density_area = [density_area, density_mean];
+                else
+                    count = count + 1;
+                end
             end
-            density_mean = length(index_area) / (6*4); %计算区域密度
-            count = 0;
-            v_blue = [v_blue, mean(v_mean)];
-            density_area = [density_area, density_mean];
-        else
-            count = count + 1;
-        end
+        case 4 %单向流3m宽通道统计图
+            inArea_index = find(person_x>6 & person_x<8 & exit_x==100); %寻找在统计区间范围内的粒子
+            if length(inArea_index)>2
+                if count == 0
+                    index_record = find(person_x>6 & person_x<8 & exit_x==100); %记录下要统计的粒子索引
+                    right_x0 = person_x(index_record); %记录统计初始时刻在区域范围内的粒子坐标
+                    count = count +1;
+                elseif count == 20
+                    right_xt = person_x(index_record); %记录统计的末时刻粒子坐标
+                    v_mean = (right_xt-right_x0)/(count*dt); %计算统计的粒子在几个时间步长内的平均速度
+                    density_mean = length(inArea_index) / (3*2); %计算区域密度
+                    count = 0;
+                    v_blue = [v_blue, mean(v_mean)];
+                    density_area = [density_area, density_mean];
+                else
+                    count = count + 1;
+                end
+            end
     end
     
-    % ↓↓统计疏散人数，并抹掉已疏散粒子的所有信息↓↓
-    for i=1:n
-        if (person_x(i)-end_x(i))^2<=0.1
-            sum_escape = sum_escape+1;
-            person_x(i) = nan;
-            person_y(i) = nan;
-        end
-    end
+%     % ↓↓统计疏散人数，并抹掉已疏散粒子的所有信息↓↓
+%     for i=1:n
+%         if (person_x(i)-end_x(i))^2<=0.1
+%             sum_escape = sum_escape+1;
+%             person_x(i) = nan;
+%             person_y(i) = nan;
+%         end
+%     end
     %% 绘制图像
     switch condition
         case 1 % 4X50画图，行人粒子随机生成          
@@ -439,6 +495,15 @@ for t=0:dt:T
             axis([0 50 -2 5]);%设置显示范围
             if t==0 %只在第1次循环设置图窗位置和大小
                 set(gcf,'position',[0,500,2000,260]);
+            end
+        case 4 % 3m单向通道画图
+            plot(wall_x1,wall_y1,'LineWidth',1,'Color','k');
+            hold on;
+            plot(wall_x2,wall_y2,'LineWidth',1,'Color','k');
+            plot(person_x,person_y,'.r', 'MarkerSize', 10);
+            axis([-2 14 -1 4]); % 设置显示范围
+            if t==0 %只在第1次循环设置图窗位置和大小
+                set(gcf,'position',[0,500,1000,260]);
             end
     end
     str_time = sprintf('疏散时间：%.2f',t);
