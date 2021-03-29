@@ -6,7 +6,7 @@ clear;
 % 2021-03-21
 % 更改速度-密度统计方式，修改右侧空隙密度和超车加速度大小
 clear;
-condition = 4; %选择模拟场景
+condition = 1; %选择模拟场景
 %% 初始化参数
 switch condition
     case 1 %随机生成行人
@@ -68,36 +68,68 @@ switch condition
         Radius = [0.3 0.3]; %行人的半径
     case 4 % 单向流验证
         % 障碍物相关参数
-        wall_x1 = (-5:0.1:12);
+        wall_x1 = (-4:0.1:12);
         wall_y1 = zeros(1, length(wall_x1));
-        wall_x2 = (-5:0.1:12);
-        wall_y2 = 3 * ones(1, length(wall_x2));
+        wall_x2 = (-4:0.1:12);
+        wall_y2 = 2 * ones(1, length(wall_x2));
+        wall_y3 = (2:0.1:4);
+        wall_x3 = -4 * ones(1, length(wall_y3));
+        wall_y4 = (0:-0.1:-1);
+        wall_x4 = -4 * ones(1, length(wall_y4));
+        wall_x5 = (-4:-0.1:-20);
+        wall_y5 = -1 * ones(1, length(wall_x5));
+        wall_x6 = (-4:-0.1:-20);
+        wall_y6 = 4 * ones(1, length(wall_x6));
+        wall_x = [wall_x1, wall_x2, wall_x3, wall_x4, wall_x5, wall_x6];
+        wall_y = [wall_y1, wall_y2, wall_y3, wall_y4, wall_y5, wall_y6];
+        s=length(wall_x);
+        % 行人相关参数
+        load uni-flow-person.mat
+        n=length(person_x);
+%         person_x = []; %行人的x坐标
+%         person_y = []; %行人的y坐标
+        exit_x = 100 * ones(1,n); %出口的x坐标
+        exit_y = 1.5 * ones(1,n); %出口的y坐标
+        end_x = 12 * ones(1,n); %清除点的坐标
+        vx = zeros(1,n); %行人速度在x方向上的分量
+        vy = zeros(1,n); %行人速度在y方向上的分量
+        v0 = 1.55 * ones(1,n); %行人的期望速度
+        Radius = 0.3 * ones(1,n); %行人的半径
+    case 5 %双向流：流量-密度验证
+        % 障碍物相关参数
+        wall_x1 = (-12:0.1:20);
+        wall_y1 = zeros(1, length(wall_x1));
+        wall_x2 = (-12:0.1:20);
+        wall_y2 = 3.6 * ones(1, length(wall_x2));
         wall_x = [wall_x1, wall_x2];
         wall_y = [wall_y1, wall_y2];
         s=length(wall_x);
         % 行人相关参数
-        person_x = []; %行人的x坐标
-        person_y = []; %行人的y坐标
-        exit_x = []; %出口的x坐标
-        exit_y = []; %出口的y坐标
-        end_x = []; %清除点的坐标
-        vx = []; %行人速度在x方向上的分量
-        vy = []; %行人速度在y方向上的分量
-        v0 = []; %行人的期望速度
-        Radius = []; %行人的半径
+        load bi-flow-person.mat
+        per = 40;
+        person_x = [person_l_x(1:per) person_r_x(1:per)];
+        person_y = [person_l_y(1:per) person_r_y(1:per)];
+        n=length(person_x);
+        exit_x = [100*ones(1,per) -50*ones(1, per)];
+        exit_y = 1.8 * ones(1,n); %出口的y坐标
+        end_x = [12*ones(1, per) -50*ones(1, per)];
+        vx = zeros(1,n); %行人速度在x方向上的分量
+        vy = zeros(1,n); %行人速度在y方向上的分量
+        v0 = 1.55 * ones(1,n); %行人的期望速度
+        Radius = 0.3 * ones(1,n); %行人的半径
 end
 
 h1=5; %计算密度和排斥力时使用的核半径
 m_person=70; %行人的质量
 m_wall=500; %障碍物的质量
-u=2; %粘度，用于计算粒子之间摩擦力产生的加速度
+u=4; %粘度，用于计算粒子之间摩擦力产生的加速度
 T=200; %模拟总时间
 tau = 0.2;%行人加速的特征时间
 sum_escape=0; %统计已疏散的人数
 P=1; %熟悉逃生路线的行人比例
 P_f=1; %从众程度
 dt=0.02; %时间步长
-t_person = 0.2; %生成粒子的时间间隔
+t_person = 0.5; %生成粒子的时间间隔
 
 % 超车行为2.0相关参数
 search_R = 5; %计算区域得分时的搜索半径
@@ -116,6 +148,7 @@ v_sum = 0; %平均速度和
 density_sum = 0; %平均密度和
 v_blue = [];
 density_area = [];
+flow = [];
 
 %% 模拟循环
 for t=0:dt:T
@@ -137,20 +170,20 @@ for t=0:dt:T
         Radius = [Radius 0.3 0.3];
     end
     if condition==4 && mod(t,t_person)==0 %每隔固定的时间随机生成一次
-        person_x_temp = [-2*rand -2*rand]; %在左右两侧各生成一个粒子
-        person_y_temp = [0.3+2.4*rand 0.3+2.4*rand];
-        person_x = [person_x person_x_temp];
-        person_y = [person_y person_y_temp];
-        exit_x = [exit_x 100 100];
-        exit_y = [exit_y 1.5 1.5];
-        end_x = [end_x 12 12];
-        vx = [vx 0 0];
-        vy = [vy 0 0];
-        temp1 = rand;
-        temp2 = rand;
-%         v0 = [v0 1.2*(temp1>0.5)+1.8*(temp1<0.5) 1.2*(temp2>0.5)+1.8*(temp2<0.5)]; %高速行人和低速行人随机分配
-        v0 = [v0 1.55+0.36*rand-0.36 1.55+0.36*rand-0.36];
-        Radius = [Radius 0.3 0.3];
+%         person_x_temp = [-2*rand-2 -2*rand-2]; %在左右两侧各生成一个粒子
+%         person_y_temp = [0.3+2.4*rand 0.3+2.4*rand];
+%         person_x = [person_x person_x_temp];
+%         person_y = [person_y person_y_temp];
+%         exit_x = [exit_x 100 100];
+%         exit_y = [exit_y 1.5 1.5];
+%         end_x = [end_x 12 12];
+%         vx = [vx 0 0];
+%         vy = [vy 0 0];
+%         temp1 = rand;
+%         temp2 = rand;
+% %         v0 = [v0 1.2*(temp1>0.5)+1.8*(temp1<0.5) 1.2*(temp2>0.5)+1.8*(temp2<0.5)]; %高速行人和低速行人随机分配
+%         v0 = [v0 1.55+0.36*rand-0.36 1.55+0.36*rand-0.36];
+%         Radius = [Radius 0.3 0.3];
     end
     n=length(person_x);
     
@@ -341,7 +374,7 @@ for t=0:dt:T
                 r2_r=(Dok_r(1)-person_x(jj))^2+(Dok_r(2)-person_y(jj))^2;%计算粒子jj与j右侧空隙r之间的距离平方
                 r2_l=(Dok_l(1)-person_x(jj))^2+(Dok_l(2)-person_y(jj))^2;%计算粒子jj与j左侧空隙l之间的距离平方
                 if r2_r<=h_k^2
-                    Rho_k(2*k) = Rho_k(2*k)+m_person*(4/(pi*h_k^8))*(h_k^2-r2_r)^3 / 1.2;
+                    Rho_k(2*k) = Rho_k(2*k)+m_person*(4/(pi*h_k^8))*(h_k^2-r2_r)^3 / 15;
                 end
                 if r2_l<=h_k^2
                     Rho_k(2*k+1) = Rho_k(2*k+1)+m_person*(4/(pi*h_k^8))*(h_k^2-r2_l)^3;
@@ -351,7 +384,7 @@ for t=0:dt:T
             d2_r = min((Dok_r(1)-wall_x).^2+(Dok_r(2)-wall_y).^2);%计算j右侧空隙与障碍的最小距离（平方）
             d2_l = min((Dok_l(1)-wall_x).^2+(Dok_l(2)-wall_y).^2);%计算j左侧空隙与障碍的最小距离（平方）
             if d2_r<=h_k^2 
-                Rho_k(2*k)=Rho_k(2*k)+m_wall*(4/(pi*h_k^8))*(h_k^2-d2_r)^3 / 1.2;
+                Rho_k(2*k)=Rho_k(2*k)+m_wall*(4/(pi*h_k^8))*(h_k^2-d2_r)^3 / 15;
             end
             if d2_l<=h_wk^2
                 Rho_k(2*k+1)=Rho_k(2*k+1)+m_wall*(4/(pi*h_wk^8))*(h_wk^2-d2_l)^3;
@@ -434,18 +467,48 @@ for t=0:dt:T
                     count = count + 1;
                 end
             end
-        case 4 %单向流3m宽通道统计图
-            inArea_index = find(person_x>6 & person_x<8 & exit_x==100); %寻找在统计区间范围内的粒子
-            if length(inArea_index)>2
+        case 4 %单向流3m宽通道速度统计
+            inArea_index = find(person_x>-4 & person_x<-2 & exit_x==100); %寻找在统计区间范围内的粒子
+            if length(inArea_index)>0
                 if count == 0
-                    index_record = find(person_x>6 & person_x<8 & exit_x==100); %记录下要统计的粒子索引
+                    index_record = find(person_x>-4 & person_x<-2 & exit_x==100); %记录下要统计的粒子索引
+%                     num_pass_x0 = length(find(person_x>-4)); %初始时刻通过起点的粒子数
                     right_x0 = person_x(index_record); %记录统计初始时刻在区域范围内的粒子坐标
                     count = count +1;
-                elseif count == 20
+                elseif count == 5
                     right_xt = person_x(index_record); %记录统计的末时刻粒子坐标
+%                     num_pass_xt = length(find(person_x>-4)); %末时刻通过起点的粒子数
                     v_mean = (right_xt-right_x0)/(count*dt); %计算统计的粒子在几个时间步长内的平均速度
-                    density_mean = length(inArea_index) / (3*2); %计算区域密度
+%                     now_flow = (num_pass_xt-num_pass_x0)/(count*dt); %几个时间步长内的流量
+                    density_mean = length(inArea_index) / (2*2); %计算区域密度
                     count = 0;
+                    v_blue = [v_blue, mean(v_mean)];
+                    density_area = [density_area, density_mean];
+%                     flow = [flow, now_flow];
+                else
+                    count = count + 1;
+                end
+            end
+        case 5 %双向流3.6m宽通道速度统计
+            inArea_index = find(person_x>3 & person_x<5 & exit_x==100); %寻找在统计区间范围内的粒子
+            if length(inArea_index) > 0
+                if count == 0
+                    index_record_r = find(person_x>3 & person_x<5 & exit_x==100); %记录下要统计的粒子索引
+                    goright_x0 = person_x(index_record_r); %记录统计初始时刻在区域范围内的粒子坐标
+                    index_record_l = find(person_x>3 & person_x<5 & exit_x==-50); %记录下要统计的粒子索引
+                    goleft_x0 = person_x(index_record_l); %记录统计初始时刻在区域范围内的粒子坐标
+                    count = count +1;
+                elseif count == 15
+                    goright_xt = person_x(index_record_r); %记录统计的末时刻粒子坐标
+                    goleft_xt = person_x(index_record_l); %记录统计的末时刻粒子坐标
+                    pass_center_r = find(goright_x0<4 & goright_xt>4);
+                    pass_center_l = find(goleft_x0>4 & goleft_xt<4);
+                    now_flow = length(pass_center_l) + length(pass_center_r);
+                    v_mean = (goright_xt-goright_x0)/(count*dt); %计算统计的粒子在几个时间步长内的平均速度
+%                     now_flow = (num_pass_xt-num_pass_x0)/(count*dt); %几个时间步长内的流量
+                    density_mean = length(inArea_index) / (3.6*2); %计算区域密度
+                    count = 0;
+                    flow = [flow now_flow];
                     v_blue = [v_blue, mean(v_mean)];
                     density_area = [density_area, density_mean];
                 else
@@ -500,18 +563,31 @@ for t=0:dt:T
             plot(wall_x1,wall_y1,'LineWidth',1,'Color','k');
             hold on;
             plot(wall_x2,wall_y2,'LineWidth',1,'Color','k');
+            hold on;
+            plot(wall_x3,wall_y3,wall_x6,wall_y6,'LineWidth',1,'Color','k');
+            hold on;
+            plot(wall_x4,wall_y4,wall_x5,wall_y5,'LineWidth',1,'Color','k');
             plot(person_x,person_y,'.r', 'MarkerSize', 10);
-            axis([-2 14 -1 4]); % 设置显示范围
+            axis([-12 14 -10 13]); % 设置显示范围
             if t==0 %只在第1次循环设置图窗位置和大小
-                set(gcf,'position',[0,500,1000,260]);
+                set(gcf,'position',[0,500,1000,400]);
             end
+        case 5 % 3.6m双向流通道画图
+            plot(wall_x1,wall_y1,'LineWidth',1,'Color','k');
+            hold on;
+            plot(wall_x2,wall_y2,'LineWidth',1,'Color','k');
+            index_l = find(exit_x==100);
+            index_r = find(exit_x==-50);
+            plot(person_x(index_l),person_y(index_l),'.r', 'MarkerSize', 10)
+            plot(person_x(index_r),person_y(index_r),'.b', 'MarkerSize', 10)
+            axis([-12 26 -10 13]); % 设置显示范围
     end
     str_time = sprintf('疏散时间：%.2f',t);
     str_escape = sprintf('疏散人数：%.0f',sum_escape);
     str_person = sprintf('当前粒子数：%d',n);
-    text(25,-0.5,str_time);
-    text(25,-1,str_escape);
-    text(25,-1.5,str_person);
+    text(5,-0.5,str_time);
+    text(5,-1,str_escape);
+    text(5,-1.5,str_person);
     axis on;
     hold off;
     pause(0.001);
