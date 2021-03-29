@@ -38,7 +38,7 @@ switch condition
         wall_y = [wall_y1, wall_y2];
         s=length(wall_x);
         % 行人相关参数
-        person_x = [20 30]; %行人的x坐标
+        person_x = [10 40]; %行人的x坐标
         person_y = [2 2]; %行人的y坐标
         exit_x = [100 -50]; %出口的x坐标
         exit_y = [2 2]; %出口的y坐标
@@ -154,7 +154,7 @@ flow = [];
 for t=0:dt:T
     %% 随机生成行人粒子
     if condition==1 && mod(t,t_person)==0 %每隔固定的时间随机生成一次
-        person_x_temp = [20-5*rand 30+5*rand]; %在左右两侧各生成一个粒子
+        person_x_temp = [10-5*rand 40+5*rand]; %在左右两侧各生成一个粒子
         person_y_temp = [0.3+3.4*rand 0.3+3.4*rand];
         person_x = [person_x person_x_temp];
         person_y = [person_y person_y_temp];
