@@ -9,7 +9,7 @@ clear;
 condition = 1; %选择模拟场景
 %% 初始化参数
 switch condition
-    case 1 %随机生成行人
+    case 1 %随机生成行人，两股行人流相向而行
         % 障碍物相关参数
         wall_x1 = (-20:0.1:70);
         wall_y1 = zeros(1, length(wall_x1));
@@ -47,7 +47,7 @@ switch condition
         vy = [0 0]; %行人速度在y方向上的分量
         v0 = [1.2 1.2]; %行人的期望速度
         Radius = [0.3 0.3]; %行人的半径
-    case 3
+    case 3 %两粒子同向而行
         % 障碍物相关参数
         wall_x1 = (-20:0.1:70);
         wall_y1 = zeros(1, length(wall_x1));

@@ -1,64 +1,33 @@
-function [Rho_P,Rho_W] = density(person_x,person_y,wall_x,wall_y,h)
+function [Rho_P,Rho_W] = density(n, m_person, m_wall, h, disP2P, disP2W)
 %density 计算每个粒子核近似后的密度
-%   person_x 各行人粒子的x坐标
-%   person_y 各行人粒子的y坐标
-%   wall_x 各障碍粒子的x坐标
-%   wall_y 各障碍粒子的y坐标
+%   n 行人粒子的数量
+%   s 障碍粒子的数量
 %   m_person 常数，各行人的质量（假设行人质量相等）
 %   m_wall 常数，各障碍的质量（假设障碍质量相等）
 %   h 常数，核半径
+%   disP2P 行人之间的距离
+%   disP2W 行人与障碍之间的距离
 %   Rho_P 待输出的各行人粒子的密度
 %   Rho_W 待输出的各障碍粒子的密度
-%% 设置初始参数
-n=length(person_x);
-s=length(wall_x);
-m_person=70;%设置行人粒子的质量为70kg
-m_wall=500;%设置障碍粒子的质量为500kg
-Rho_P=zeros(1,n);%初始化行人粒子的初始密度矩阵
-Rho_W=zeros(1,s);%初始化障碍粒子的初始密度矩阵
-%% 判断输入参数是否合法
-if length(person_y)~=n
-    error('行人的xy坐标数量不一致');
-else
-    if length(wall_y)~=s
-        error('障碍的xy坐标数量不一致');
-    end
-end
+
+% % 设置初始参数
+% Rho_P=zeros(1,n);%初始化行人粒子的初始密度矩阵
+% Rho_W=zeros(1,s);%初始化障碍粒子的初始密度矩阵
+
 %% 计算行人粒子的密度
-%avg_Radius=mean(Radius);
-%Rho_0=m_person*(4/(pi*h^8))*(h^2-4*avg_Radius^2)^3;%临界密度
-for i=1:n
-    for j=1:n
-        r_2=(person_x(i)-person_x(j))^2+(person_y(i)-person_y(j))^2;%计算两行人粒子之间的距离平方
-        if r_2<=h^2 %只计算核半径范围内其他行人粒子对粒子i密度的影响
-            Rho_P(i)=Rho_P(i)+m_person*(4/(pi*h^8))*(h^2-r_2)^3;
-        end
-    end
-    d=zeros(1,s);
-    for j=1:s
-        d(j)=(person_x(i)-wall_x(j))^2+(person_y(i)-wall_y(j))^2;%计算行人与障碍粒子的距离平方
-    end
-    [r,~]=min(d);
-    if r<=h^2 %只计算核半径范围内最近障碍粒子对粒子i密度的影响
-        Rho_P(i)=Rho_P(i)+m_wall*(4/(pi*h^8))*(h^2-r)^3;
-    end
-end
+% ↓↓行人与行人↓↓
+RhoP2P_temp = m_person*(4/(pi*h^8))*(h^2-disP2P(1:n,1:n).^2).^3; %计算行人ij之间的密度贡献
+RhoP2P_temp(RhoP2P_temp<0) = 0; %把负密度（说明不在核半径内）重置为0
+RhoP2P = sum(RhoP2P_temp); %按列求和，得到1×n的密度矩阵，每一列代表对应粒子的P2P密度
+% ↓↓行人与障碍物↓↓
+disP2W_min = min(disP2W(:,1:n));
+RhoP2W_temp = m_wall*(4/(pi*h^8))*(h^2-disP2W_min(1).^2).^3; %按列求disP2W的最小值，得到每个行人与障碍物的最小距离，计算距离最近的障碍物对行人粒子的密度贡献
+RhoP2W_temp(RhoP2W_temp<0) = 0; %把负密度（说明不在核半径内）重置为0
+Rho_P2W = RhoP2W_temp;
+% ↓↓密度求和↓↓
+Rho_P = RhoP2P+Rho_P2W;
+
 %% 计算障碍粒子的密度
-for i=1:s
-    %for j=1:s
-        %if i==j
-            %continue;
-        %end
-        %r_2=(wall_x(i)-wall_x(j))^2+(wall_y(i)-wall_y(j))^2;%计算两障碍粒子之间的距离平方
-        %if r_2<=0.01 %障碍粒子密度不受其他障碍粒子影响
-    Rho_W(i)=Rho_W(i)+m_wall*(4/(pi*h^2));
-        %end
-    %end
-    d=zeros(1,n);
-    for j=1:n
-        d(j)=(wall_x(i)-person_x(j))^2+(wall_y(i)-person_y(j))^2;%计算障碍粒子与行人粒子的距离平方
-        if d(j)<=h^2 %只计算核半径范围内行人粒子对粒子i密度的影响
-            Rho_W(i)=Rho_W(i)+m_person*(4/(pi*h^8))*(h^2-d(j))^3;
-        end
-    end
-end
+RhoW2P_temp = m_person*(4/(pi*h^8))*(h^2-disP2W(:,1:n).^2).^3; %计算行人粒子对障碍物密度的贡献
+RhoW2P_temp(RhoW2P_temp<0) = 0;
+Rho_W = m_wall*(4/(pi*h^2))+sum(RhoW2P_temp,2)';
