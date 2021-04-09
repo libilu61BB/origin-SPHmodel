@@ -6,7 +6,7 @@ clear;
 % 2021-03-21
 % 更改速度-密度统计方式，修改右侧空隙密度和超车加速度大小
 clear;
-condition = 1; %选择模拟场景
+condition = 2; %选择模拟场景
 %% 初始化参数
 switch condition
     case 1 %随机生成行人，两股行人流相向而行
@@ -76,18 +76,36 @@ switch condition
         conflict = zeros(n); %两粒子之间的冲突次数，初始化为n×n方阵
         markA = zeros(n); %当前时刻两粒子的距离标记，满足冲突要求则记为1，否则为0
         markB = zeros(n); %上一时刻两粒子的距离标记，满足冲突要求则记为1，否则为0
+    case 4
+        % 4*100m通道及单向行人
+        wall_x1 = (0:0.1:100);
+        wall_y1 = zeros(1, length(wall_x1));
+        wall_x2 = (0:0.1:100);
+        wall_y2 = 4 * ones(1, length(wall_x2));
+        wall_x = [wall_x1, wall_x2];
+        wall_y = [wall_y1, wall_y2];
+        person_x = linspace(1,1+0.5*100,50);
+        person_y = 3.4*rand(1,length(person_x))+0.3; %y∈[0.3 3.7]
+        n=length(person_x);
+        s=length(wall_x);
+        exit_x=150*ones(1,n);
+        exit_y = 2*ones(1,n);
+        end_x = 100*ones(1,n);
+        vx=zeros(1,n);%行人速度在x方向上的分量，初始时刻为0
+        vy=zeros(1,n);%行人速度在y方向上的分量，初始时刻为0
+        v0 = [2*ones(1,floor(n/2)),1*ones(1,n-floor(n/2))]; %定义行人的期望速度，前一半为低速行人，后一半为高速行人,floor为向下取整
 end
 
 h1 = 5; %计算密度和排斥力时使用的核半径
 m_person=70; %行人的质量
 m_wall=500; %障碍物的质量
 Radius = 0.3; %行人的半径
-u=2; %粘度，用于计算粒子之间摩擦力产生的加速度
+u=20; %粘度，用于计算粒子之间摩擦力产生的加速度
 T=200; %模拟总时间
 tau = 0.2;%行人加速的特征时间
 sum_escape=0; %统计已疏散的人数
 dt=0.02; %时间步长
-t_person = 0.1; %生成粒子的时间间隔
+t_person = 0.5; %生成粒子的时间间隔
 
 disP2P = zeros(n); %两行人之间的距离，初始化为n阶方阵，i行j列表示行人ij之间的距离，是主对角线为0的对称阵
 disP2W = zeros(s,n); %行人与障碍物的距离
@@ -216,52 +234,51 @@ for t=0:dt:T
         mark2(ind_R2) = (vx(ind_R2)-vx(i))*(ui0_x(i)-vx(i))+...
             (vy(ind_R2)-vy(i))*(ui0_y(i)-vy(i)); %(Vj-Vi)与(ui0-Vi)的内积判断
         ind_pass = find(mark2<0); %i想要超车的j
-        ind_foll = find(mark2>0); %i想要跟随的j       
+        ind_foll = find(mark2>0); %i想要跟随的j
         % 计算跟随加速度
-        if isempty(ind_foll) %如果没有要操作的粒子，就跳过后续计算
-            continue
+        if ~isempty(ind_foll) %如果有要跟随的粒子，就计算跟随加速度
+            eij_x = (person_x(ind_foll)-person_x(i))./disp2p(ind_foll);
+            eij_y = (person_y(ind_foll)-person_y(i))./disp2p(ind_foll);
+            a_graX(i) = sum(mark2(ind_foll)/tau.*(eij_x*e_x(i)+eij_y*e_y(i))/...
+                (disp2p(ind_foll)/(2*Radius)).^2.*eij_x);
+            a_graY(i) = sum(mark2(ind_foll)/tau.*(eij_x*e_x(i)+eij_y*e_y(i))/...
+                (disp2p(ind_foll)/(2*Radius)).^2.*eij_y);
         end
-        eij_x = (person_x(ind_foll)-person_x(i))./disp2p(ind_foll);
-        eij_y = (person_y(ind_foll)-person_y(i))./disp2p(ind_foll);        
-        a_graX(i) = sum(mark2(ind_foll)/tau.*(eij_x*e_x(i)+eij_y*e_y(i))/...
-            (disp2p(ind_foll)/(2*Radius)).^2.*eij_x);
-        a_graY(i) = sum(mark2(ind_foll)/tau.*(eij_x*e_x(i)+eij_y*e_y(i))/...
-            (disp2p(ind_foll)/(2*Radius)).^2.*eij_y);
+
         % 计算超车加速度
-        if isempty(ind_pass) %如果没有要操作的粒子，就跳过后续计算
-            continue
-        end
-        alpha = [90 45 0 -45 -90]; %空隙与Vi的夹角
-        vx_i = vx(i)*cosd(alpha)-vy(i)*sind(alpha); %把Vi逆时针旋转alpha度，用来确定5个空隙的方向
-        vy_i = vx(i)*sind(alpha)+vy(i)*cosd(alpha);
-        abs_vi = sqrt(vx_i.^2+vy_i.^2);
-        k_x = person_x(i)+L_i2k*vx_i./abs_vi; %空隙的坐标，x向，1*5
-        k_y = person_y(i)+L_i2k*vy_i./abs_vi; %空隙的坐标，y向，1*5
-        m = length(ind_pass);
-        tempk = ones(m,1); %临时矩阵，用于扩展矩阵k_x和k_y
-        tempj = ones(1,5); %临时矩阵，用于扩展ind_pass对应的矩阵person_x和person_y
-        k_xtemp = tempk*k_x; %矩阵乘法，将k_x按行复制成m行5列
-        k_ytemp = tempk*k_y;
-        person_xtemp = person_x(ind_pass)'*tempj; %矩阵乘法，将person_x转置后按列复制成m行5列
-        person_ytemp = person_y(ind_pass)'*tempj;
-        disK2J = sqrt((k_xtemp-person_xtemp).^2+...
-                      (k_ytemp-person_ytemp).^2); %计算空隙与粒子j的距离，m行5列，每列储存一个空隙的距离信息
-        RhoK2J = m_person*(4/(pi*h_k^8))*(h_k^2-disK2J.^2).^3; %计算j对空隙的密度贡献
-        RhoK2J(RhoK2J<0) = 0;
-        RhoK2J = sum(RhoK2J); %按列求和，得到1行5列的密度矩阵
-        disp2w = disP2W(:,i)'; %第1个行人与障碍粒子的距离，转置为行向量
-        [~,ind_i2w] = min(disp2w); %找到与i最近的墙壁，返回索引
-        disK2W = sqrt((k_x-wall_x(ind_i2w(1))).^2+(k_y-wall_y(ind_i2w(1))).^2); %计算空隙与障碍物的距离
-        RhoK2W = m_wall*(4/(pi*h_wk^8))*(h_wk^2-disK2W.^2).^3; %计算障碍物对空隙的密度贡献
-        RhoK2W(RhoK2W<0) = 0;
-        Rho_K = RhoK2J+RhoK2W; %计算空隙的总密度
-        K1 = sqrt(sum([ui0_x(i)-vx(i),ui0_y(i)-vy(i)].^2))/tau/L_i2k^2;
-        a_pass_xtemp = K1*(vx_i./abs_vi*e_x(i)+vy_i./abs_vi*e_y(i))./Rho_K.*(vx_i./abs_vi);
-        a_pass_ytemp = K1*(vx_i./abs_vi*e_x(i)+vy_i./abs_vi*e_y(i))./Rho_K.*(vy_i./abs_vi);
-        a_pass_abs = sqrt(a_pass_xtemp.^2+a_pass_ytemp.^2);
-        [~,ind_k] = min(a_pass_abs);
-        a_pass_x(i) = a_pass_xtemp(ind_k(1));
-        a_pass_y(i) = a_pass_ytemp(ind_k(1));
+        if ~isempty(ind_pass) %如果有要超越的粒子，就计算超车加速度
+            alpha = [90 45 0 -45 -90]; %空隙与Vi的夹角
+            vx_i = vx(i)*cosd(alpha)-vy(i)*sind(alpha); %把Vi逆时针旋转alpha度，用来确定5个空隙的方向
+            vy_i = vx(i)*sind(alpha)+vy(i)*cosd(alpha);
+            abs_vi = sqrt(vx_i.^2+vy_i.^2);
+            k_x = person_x(i)+L_i2k*vx_i./abs_vi; %空隙的坐标，x向，1*5
+            k_y = person_y(i)+L_i2k*vy_i./abs_vi; %空隙的坐标，y向，1*5
+            m = length(ind_pass);
+            tempk = ones(m,1); %临时矩阵，用于扩展矩阵k_x和k_y
+            tempj = ones(1,5); %临时矩阵，用于扩展ind_pass对应的矩阵person_x和person_y
+            k_xtemp = tempk*k_x; %矩阵乘法，将k_x按行复制成m行5列
+            k_ytemp = tempk*k_y;
+            person_xtemp = person_x(ind_pass)'*tempj; %矩阵乘法，将person_x转置后按列复制成m行5列
+            person_ytemp = person_y(ind_pass)'*tempj;
+            disK2J = sqrt((k_xtemp-person_xtemp).^2+...
+                (k_ytemp-person_ytemp).^2); %计算空隙与粒子j的距离，m行5列，每列储存一个空隙的距离信息
+            RhoK2J = m_person*(4/(pi*h_k^8))*(h_k^2-disK2J.^2).^3; %计算j对空隙的密度贡献
+            RhoK2J(RhoK2J<0) = 0;
+            RhoK2J = sum(RhoK2J); %按列求和，得到1行5列的密度矩阵
+            disp2w = disP2W(:,i)'; %第1个行人与障碍粒子的距离，转置为行向量
+            [~,ind_i2w] = min(disp2w); %找到与i最近的墙壁，返回索引
+            disK2W = sqrt((k_x-wall_x(ind_i2w(1))).^2+(k_y-wall_y(ind_i2w(1))).^2); %计算空隙与障碍物的距离
+            RhoK2W = m_wall*(4/(pi*h_wk^8))*(h_wk^2-disK2W.^2).^3; %计算障碍物对空隙的密度贡献
+            RhoK2W(RhoK2W<0) = 0;
+            Rho_K = RhoK2J+RhoK2W; %计算空隙的总密度
+            K1 = sqrt(sum([ui0_x(i)-vx(i),ui0_y(i)-vy(i)].^2))/tau/L_i2k^2;
+            a_pass_xtemp = K1*(vx_i./abs_vi*e_x(i)+vy_i./abs_vi*e_y(i))./Rho_K.*(vx_i./abs_vi);
+            a_pass_ytemp = K1*(vx_i./abs_vi*e_x(i)+vy_i./abs_vi*e_y(i))./Rho_K.*(vy_i./abs_vi);
+            a_pass_abs = sqrt(a_pass_xtemp.^2+a_pass_ytemp.^2);
+            [~,ind_k] = min(a_pass_abs);
+            a_pass_x(i) = a_pass_xtemp(ind_k(1));
+            a_pass_y(i) = a_pass_ytemp(ind_k(1));
+        end    
     end
     
     %% 计算行人的位置
@@ -347,6 +364,16 @@ for t=0:dt:T
             if t==0 %只在第1次循环设置图窗位置和大小
                 set(gcf,'position',[0,500,2000,260]);
             end
+        case 4
+            % 4X100画图
+            plot(wall_x1,wall_y1,'LineWidth',1,'Color','k');
+            hold on;
+            plot(wall_x2,wall_y2,'LineWidth',1,'Color','k');
+            hold on;
+            plot(person_x(1:25),person_y(1:25),'.r', 'MarkerSize', 10)
+            plot(person_x(26:50),person_y(26:50),'.b', 'MarkerSize', 10)
+            axis([-1 101 -1 5]);%设置显示范围
+            set(gcf,'position',[0,500,2000,160]);
     end
     str_time = sprintf('疏散时间：%.2f',t);
     str_escape = sprintf('疏散人数：%.0f',sum_escape);

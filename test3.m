@@ -7,7 +7,7 @@
 clear;
 
 %% 设置障碍物坐标、行人坐标和出口坐标
-condition = 3;
+condition = 1;
 switch condition
     case 1
         % 4*100m通道及双向行人

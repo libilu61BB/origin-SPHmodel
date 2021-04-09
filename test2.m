@@ -8,7 +8,7 @@
 
 clear;
 %% 设置障碍物坐标、行人坐标和出口坐标
-condition = 3;
+condition = 2;
 switch condition
     case 1
         % 15m×15m正方形空间及行人，出口宽度3m
