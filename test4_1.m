@@ -6,7 +6,7 @@ clear;
 % 2021-03-21
 % 更改速度-密度统计方式，修改右侧空隙密度和超车加速度大小
 clear;
-condition = 2; %选择模拟场景
+condition = 1; %选择模拟场景
 %% 初始化参数
 switch condition
     case 1 %随机生成行人，两股行人流相向而行
@@ -224,8 +224,9 @@ for t=0:dt:T
             continue
         end
         disp2p = disP2P(i,1:n);
-        disp2p(i) = nan;
+%         disp2p(i) = nan;
         ind_R1 = find(disp2p<search_R); %找到搜索半径内的粒子j
+        ind_R1(ind_R1==i) = [];
         mark1 = zeros(1,n);
         mark2 = zeros(1,n);
         mark1(ind_R1) = (person_x(ind_R1)-person_x(i))*vx(i)+...
@@ -271,13 +272,13 @@ for t=0:dt:T
             RhoK2W = m_wall*(4/(pi*h_wk^8))*(h_wk^2-disK2W.^2).^3; %计算障碍物对空隙的密度贡献
             RhoK2W(RhoK2W<0) = 0;
             Rho_K = RhoK2J+RhoK2W; %计算空隙的总密度
-            K1 = sqrt(sum([ui0_x(i)-vx(i),ui0_y(i)-vy(i)].^2))/tau/L_i2k^2;
+            K1 = sqrt(sum([ui0_x(i)-vx(i),ui0_y(i)-vy(i)].^2))/tau/L_i2k^2;            
             a_pass_xtemp = K1*(vx_i./abs_vi*e_x(i)+vy_i./abs_vi*e_y(i))./Rho_K.*(vx_i./abs_vi);
             a_pass_ytemp = K1*(vx_i./abs_vi*e_x(i)+vy_i./abs_vi*e_y(i))./Rho_K.*(vy_i./abs_vi);
             a_pass_abs = sqrt(a_pass_xtemp.^2+a_pass_ytemp.^2);
-            [~,ind_k] = min(a_pass_abs);
-            a_pass_x(i) = a_pass_xtemp(ind_k(1));
-            a_pass_y(i) = a_pass_ytemp(ind_k(1));
+            [~,ind_k] = max(a_pass_abs);
+            a_pass_x(i) = a_pass_xtemp(ind_k);
+            a_pass_y(i) = a_pass_ytemp(ind_k);
         end    
     end
     
