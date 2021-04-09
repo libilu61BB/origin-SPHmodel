@@ -231,7 +231,7 @@ for t=0:dt:T
 %             flag2 = sum((Vj-Vi).*(ui0-Vi)); %内积判断
             if Dij_abs<=search_R && flag1>0.5 %只考虑搜索半径内且夹角小于60°的粒子
 %                 if flag2>0 
-                if sum(Vj.*(ui0-Vi)) > 3*sum(Vi.*(ui0-Vi))
+                if sum(Vj.*(ui0-Vi)) > 1*sum(Vi.*(ui0-Vi))
                     index_follow(j) = j; %储存要跟随的粒子的索引
                 else
                     index_pass(j) = j; %储存要超越的粒子的索引
@@ -411,13 +411,13 @@ for t=0:dt:T
     end
 
     % ↓↓统计疏散人数，并抹掉已疏散粒子的所有信息↓↓
-    for i=1:n
-        if (person_x(i)-end_x(i))^2<=0.1
-            sum_escape = sum_escape+1;
-            person_x(i) = nan;
-            person_y(i) = nan;
-        end
-    end
+%     for i=1:n
+%         if (person_x(i)-end_x(i))^2<=0.1
+%             sum_escape = sum_escape+1;
+%             person_x(i) = nan;
+%             person_y(i) = nan;
+%         end
+%     end
     %% 绘制图像
     switch condition
         case 1 % 4X50画图，行人粒子随机生成          
@@ -457,7 +457,10 @@ for t=0:dt:T
     end
 end    
 
-
+xlswrite('2rx_tolerance3.xlsx', trace2r_x);
+xlswrite('2ry_tolerance3.xlsx', trace2r_y);
+xlswrite('2lx_tolerance3.xlsx', trace2l_x);
+xlswrite('2ly_tolerance3.xlsx', trace2l_y);
 
 
 
