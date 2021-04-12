@@ -27,10 +27,7 @@ switch condition
         vx = []; %行人速度在x方向上的分量
         vy = []; %行人速度在y方向上的分量
         v0 = []; %行人的期望速度
-        Sum_person = 500; %行人粒子的上限
-        conflict = zeros(Sum_person); %两粒子之间的冲突次数
-        markA = zeros(Sum_person); %当前时刻两粒子的距离标记，满足冲突要求则记为1，否则为0
-        markB = zeros(Sum_person); %上一时刻两粒子的距离标记，满足冲突要求则记为1，否则为0
+        Sum_person = 100; %行人粒子的上限
         n = Sum_person;
     case 2 %两粒子相向而行
         % 障碍物相关参数
@@ -51,9 +48,6 @@ switch condition
         vy = [0 0]; %行人速度在y方向上的分量
         v0 = [1.2 1.2]; %行人的期望速度
         n=length(person_x);
-        conflict = zeros(n); %两粒子之间的冲突次数
-        markA = zeros(n); %当前时刻两粒子的距离标记，满足冲突要求则记为1，否则为0
-        markB = zeros(n); %上一时刻两粒子的距离标记，满足冲突要求则记为1，否则为0
     case 3 %两粒子同向而行
         % 障碍物相关参数
         wall_x1 = (-20:0.1:70);
@@ -73,9 +67,6 @@ switch condition
         vy = [0 0]; %行人速度在y方向上的分量
         v0 = [1.8 1.2]; %行人的期望速度
         n=length(person_x);
-        conflict = zeros(n); %两粒子之间的冲突次数，初始化为n×n方阵
-        markA = zeros(n); %当前时刻两粒子的距离标记，满足冲突要求则记为1，否则为0
-        markB = zeros(n); %上一时刻两粒子的距离标记，满足冲突要求则记为1，否则为0
     case 4
         % 4*100m通道及单向行人
         wall_x1 = (0:0.1:100);
@@ -117,6 +108,8 @@ L_i2k = 0.5; %粒子i与空隙的距离
 h_k = 5; %计算行人对空隙密度影响时使用的核半径
 h_wk = 0.5; %计算障碍对空隙密度影响时使用的核半径
 a = 1; %i前方空隙的密度修正指数
+K_pass = 10; %超车加速度修成系数
+K_foll = 20; %跟随加速度修正系数
 
 % 朗之万随机力相关参数
 P_r=0.5^dt;%加速度朗之万分量的时间权重
@@ -240,9 +233,9 @@ for t=0:dt:T
         if ~isempty(ind_foll) %如果有要跟随的粒子，就计算跟随加速度
             eij_x = (person_x(ind_foll)-person_x(i))./disp2p(ind_foll);
             eij_y = (person_y(ind_foll)-person_y(i))./disp2p(ind_foll);
-            a_graX(i) = sum(mark2(ind_foll)/tau.*(eij_x*e_x(i)+eij_y*e_y(i))/...
+            a_graX(i) = K_foll*sum(mark2(ind_foll)/tau.*(eij_x*e_x(i)+eij_y*e_y(i))/...
                 (disp2p(ind_foll)/(2*Radius)).^2.*eij_x);
-            a_graY(i) = sum(mark2(ind_foll)/tau.*(eij_x*e_x(i)+eij_y*e_y(i))/...
+            a_graY(i) = K_foll*sum(mark2(ind_foll)/tau.*(eij_x*e_x(i)+eij_y*e_y(i))/...
                 (disp2p(ind_foll)/(2*Radius)).^2.*eij_y);
         end
 
@@ -261,8 +254,7 @@ for t=0:dt:T
             k_ytemp = tempk*k_y;
             person_xtemp = person_x(ind_pass)'*tempj; %矩阵乘法，将person_x转置后按列复制成m行5列
             person_ytemp = person_y(ind_pass)'*tempj;
-            disK2J = sqrt((k_xtemp-person_xtemp).^2+...
-                (k_ytemp-person_ytemp).^2); %计算空隙与粒子j的距离，m行5列，每列储存一个空隙的距离信息
+            disK2J = sqrt((k_xtemp-person_xtemp).^2+(k_ytemp-person_ytemp).^2); %计算空隙与粒子j的距离，m行5列，每列储存一个空隙的距离信息
             RhoK2J = m_person*(4/(pi*h_k^8))*(h_k^2-disK2J.^2).^3; %计算j对空隙的密度贡献
             RhoK2J(RhoK2J<0) = 0;
             RhoK2J = sum(RhoK2J); %按列求和，得到1行5列的密度矩阵
@@ -272,22 +264,35 @@ for t=0:dt:T
             RhoK2W = m_wall*(4/(pi*h_wk^8))*(h_wk^2-disK2W.^2).^3; %计算障碍物对空隙的密度贡献
             RhoK2W(RhoK2W<0) = 0;
             Rho_K = RhoK2J+RhoK2W; %计算空隙的总密度
-            K1 = sqrt(sum([ui0_x(i)-vx(i),ui0_y(i)-vy(i)].^2))/tau/L_i2k^2;            
-            a_pass_xtemp = K1*(vx_i./abs_vi*e_x(i)+vy_i./abs_vi*e_y(i))./Rho_K.*(vx_i./abs_vi);
-            a_pass_ytemp = K1*(vx_i./abs_vi*e_x(i)+vy_i./abs_vi*e_y(i))./Rho_K.*(vy_i./abs_vi);
+            K1 = sqrt(sum([ui0_x(i)-vx(i),ui0_y(i)-vy(i)].^2))/tau/L_i2k^2;
+            a_pass_xtemp = K1*(vx_i./abs_vi*e_x(i)+vy_i./abs_vi*e_y(i))./(Rho_K+eps).*(vx_i./abs_vi);
+            a_pass_ytemp = K1*(vx_i./abs_vi*e_x(i)+vy_i./abs_vi*e_y(i))./(Rho_K+eps).*(vy_i./abs_vi);
             a_pass_abs = sqrt(a_pass_xtemp.^2+a_pass_ytemp.^2);
             [~,ind_k] = max(a_pass_abs);
-            a_pass_x(i) = a_pass_xtemp(ind_k);
-            a_pass_y(i) = a_pass_ytemp(ind_k);
-        end    
+            a_pass_x(i) = K_pass*a_pass_xtemp(ind_k);
+            a_pass_y(i) = K_pass*a_pass_ytemp(ind_k);
+%             if sum(isinf(a_pass_x(i))+isinf(a_pass_y(i)))
+%                 error('超车加速度出现inf');
+%             end
+        end
     end
     
     %% 计算行人的位置
     % 超车加速度和跟随加速度分解到xy轴上
     ax = am_x+ar_x+ae_x+av_x+al_x+a_graX+a_pass_x;%1行n列，t时刻各行人粒子x方向的合加速度
     ay = am_y+ar_y+ae_y+av_y+al_y+a_graY+a_pass_y;%1行n列，t时刻各行人粒子y方向的合加速度
+    
+%     if sum(isnan(ax)+isnan(ax))
+%         error('加速度出现nan');
+%     end
+
     vx = vx+ax*dt; %计算下一时刻的x方向速度
     vy = vy+ay*dt; %计算下一时刻的y方向速度
+    
+%     if sum(isnan(vx)+isnan(vx))
+%         error('加速度正常，速度出现nan');
+%     end
+
     V = sqrt(vx.^2+vy.^2);
     index = find(V>v0); %找出超速粒子的索引
     vx(index) = vx(index).*v0(index)./V(index);
@@ -295,33 +300,32 @@ for t=0:dt:T
     person_x = person_x+vx*dt; %计算x方向的位移
     person_y = person_y+vy*dt; %计算y方向的位移
     
-    %% 计算冲突次数
-    
-    
-    
+%     if sum(isnan(person_x)+isnan(person_y))
+%         error('位置出现nan');
+%     end
     
     %% 统计行人速度-密度图
-    temp_index = find(person_x>22 & person_x<28 & exit_x==100); %寻找在区间范围内且期望往右运动的粒子
-    if length(temp_index)>2
-        if count == 0
-            index_area = find(person_x>22 & person_x<28); %寻找x在22~28区间范围内的粒子
-            index_right = find(person_x>22 & person_x<28 & exit_x==100); %寻找在区间范围内且期望往右运动的粒子
-            right_x0 = person_x(index_right); %记录统计初始时刻向右运动粒子坐标
-            count = count + 1;
-        elseif count == 20
-            right_xt = person_x(index_right); %记录统计的末时刻向右运动粒子坐标
-            v_mean = (right_xt-right_x0)/(count*dt); %计算统计的粒子在几个时间步长内的平均速度
-            if mean(v_mean) > 2 || mean(v_mean) <0.3
-                a = mean(v_mean);
-            end
-            density_mean = length(index_area) / (6*4); %计算区域密度
-            count = 0;
-            v_blue = [v_blue, mean(v_mean)];
-            density_area = [density_area, density_mean];
-        else
-            count = count + 1;
-        end
-    end
+%     temp_index = find(person_x>22 & person_x<28 & exit_x==100); %寻找在区间范围内且期望往右运动的粒子
+%     if length(temp_index)>2
+%         if count == 0
+%             index_area = find(person_x>22 & person_x<28); %寻找x在22~28区间范围内的粒子
+%             index_right = find(person_x>22 & person_x<28 & exit_x==100); %寻找在区间范围内且期望往右运动的粒子
+%             right_x0 = person_x(index_right); %记录统计初始时刻向右运动粒子坐标
+%             count = count + 1;
+%         elseif count == 20
+%             right_xt = person_x(index_right); %记录统计的末时刻向右运动粒子坐标
+%             v_mean = (right_xt-right_x0)/(count*dt); %计算统计的粒子在几个时间步长内的平均速度
+%             if mean(v_mean) > 2 || mean(v_mean) <0.3
+%                 a = mean(v_mean);
+%             end
+%             density_mean = length(index_area) / (6*4); %计算区域密度
+%             count = 0;
+%             v_blue = [v_blue, mean(v_mean)];
+%             density_area = [density_area, density_mean];
+%         else
+%             count = count + 1;
+%         end
+%     end
     
     % ↓↓统计疏散人数，并抹掉已疏散粒子的所有信息↓↓
 %     for i=1:n
