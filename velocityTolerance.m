@@ -59,6 +59,7 @@ search_R = 5; %计算区域得分时的搜索半径
 L_i2k = 0.6; %粒子i与空隙的距离
 h_k = 6; %计算行人对空隙密度影响时使用的核半径
 h_wk = 1; %计算障碍对空隙密度影响时使用的核半径
+foll_v_tol = 1; %follow velocity tolerance 对j的速度忍耐度。变化范围：0~2
 K_pass = 1; %超车加速度修成系数
 K_foll = 1; %跟随加速度修正系数
 Rho_kLim = 10; %空隙密度的区间[0,Rho_kLim]
@@ -68,7 +69,6 @@ P_r=0.5^dt;%加速度朗之万分量的时间权重
 A=0.5;%加速度朗之万分量的量级
 
 % 行人渠化程度统计相关参数
-foll_v_tol = 1; %follow velocity tolerance 对j的速度忍耐度。变化范围：0~2
 trace2r_index = []; % 向右走的待统计粒子
 trace2r_x = zeros(200, 1000);
 trace2r_y = zeros(200, 1000);
@@ -403,4 +403,7 @@ for t=0:dt:T
 %     end
 end
 
-
+xlswrite('2rx_tolerance_5_Kfoll_1.xlsx', trace2r_x);
+xlswrite('2ry_tolerance_5_Kfoll_1.xlsx', trace2r_y);
+xlswrite('2lx_tolerance_5_Kfoll_1.xlsx', trace2l_x);
+xlswrite('2ly_tolerance_5_Kfoll_1.xlsx', trace2l_y);
