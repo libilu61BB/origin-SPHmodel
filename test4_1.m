@@ -13,6 +13,9 @@ clear;
 % 计算空隙密度时，添加列一项|vj-vi|,考虑行人的速度差，速度差越大，密度贡献越大
 % 我发现加速度过小的主要原因是密度的数值太大，所以添加了空隙密度归一化，将空隙密度缩放到0~Rho_kLim之间
 
+% 2021-04-16
+% 添加了右行倾向
+
 clear;
 condition = 1; %选择模拟场景
 %% 初始化参数
@@ -287,7 +290,7 @@ for t=0:dt:T
             RhoK2W(RhoK2W<0) = 0;
             Rho_K = RhoK2J+RhoK2W; %计算空隙的总密度
             
-            Rho_K = Rho_kLim*Rho_K/sum(Rho_K);
+            Rho_K = Rho_kLim*Rho_K/sum(Rho_K).*[1.2 1.1 1.0 1.0 1.0];
             [~,ind_k] = min(Rho_K);
             K1 = sqrt(sum([ui0_x(i)-vx(i),ui0_y(i)-vy(i)].^2))/tau/L_i2k^2;
             % K2 = (vx_k*e_x(i)+vy_k*e_y(i));
