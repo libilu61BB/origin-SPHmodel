@@ -16,6 +16,9 @@ clear;
 % 2021-04-16
 % 添加了右行倾向
 
+% 2021-04-19
+% 修改超车加速度中空隙密度的计算方法
+
 clear;
 condition = 1; %选择模拟场景
 %% 初始化参数
@@ -253,12 +256,12 @@ for t=0:dt:T
         % 计算超车加速度
         if ~isempty(ind_pass) %如果有要超越的粒子，就计算超车加速度
             ind_search = [ind_pass ind_foll];
-            alpha = [60 30 0 -30 -60]; %空隙与Vi的夹角           
+            alpha = [60 30 0 -30 -60]; %空隙与Vi的夹角
 %             vx_i = vx(i)*cosd(alpha)-vy(i)*sind(alpha); %把Vi逆时针旋转alpha度，用来确定5个空隙的方向
 %             vy_i = vx(i)*sind(alpha)+vy(i)*cosd(alpha);
 %             abs_vi = sqrt(vx_i.^2+vy_i.^2);
 %             k_x = person_x(i)+L_i2k*vx_i./abs_vi; %空隙的坐标，x向，1*5
-%             k_y = person_y(i)+L_i2k*vy_i./abs_vi; %空隙的坐标，y向，1*5           
+%             k_y = person_y(i)+L_i2k*vy_i./abs_vi; %空隙的坐标，y向，1*5
             vx_k = e_x(i)*cosd(alpha)-e_y(i)*sind(alpha); %把Vi逆时针旋转alpha度，用来确定5个空隙的方向
             vy_k = e_x(i)*sind(alpha)+e_y(i)*cosd(alpha);
             k_x = person_x(i)+L_i2k*vx_k; %空隙的坐标，x向，1*5
@@ -274,9 +277,14 @@ for t=0:dt:T
             RhoK2J = m_person*(4/(pi*h_k^8))*(h_k^2-disK2J.^2).^3; %计算j对空隙的密度贡献
             RhoK2J(RhoK2J<0) = 0;
             
-            vx_j = vx(ind_search);
+            vx_j = vx(ind_search); %半径内其他行人粒子的坐标
             vy_j = vy(ind_search);
-            absVji = sqrt((vx_j-vx(i)).^2+(vy_j-vy(i)).^2); %|vj-vi|
+            q = vx_j.*vx(i)+vy_j.*vy(i); %向量内积，用于判断vj与vi的夹角
+            ind = find(q>=0); %找出范围内与i同向而行的粒子j，夹角<=90视为同向
+            vx_ji = vx_j-vx(i); %向量作差，vj-vi
+            vy_ji = vy_j-vy(i);           
+            absVji = sqrt(vx_ji.^2+vy_ji.^2); %|vj-vi|
+            absVji(ind) = 1; %将同向而行的粒子的比例系数设置为1
             absVji = absVji'*ones(1,5); %扩展成m行5列的矩阵
             RhoK2J = RhoK2J.*absVji;
             
