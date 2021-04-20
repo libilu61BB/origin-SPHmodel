@@ -13,6 +13,12 @@ clear;
 % 计算空隙密度时，添加列一项|vj-vi|,考虑行人的速度差，速度差越大，密度贡献越大
 % 我发现加速度过小的主要原因是密度的数值太大，所以添加了空隙密度归一化，将空隙密度缩放到0~Rho_kLim之间
 
+% 2021-04-16
+% 添加了右行倾向
+
+% 2021-04-19
+% 修改超车加速度中空隙密度的计算方法，将同向而行粒子的密度影响设置为1，相向而行粒子的密度影响按|vj-vi|放大
+
 clear;
 condition = 1; %选择模拟场景
 %% 初始化参数
@@ -179,8 +185,8 @@ for t=0:dt:T
         mark1(ind_R1) = (person_x(ind_R1)-person_x(i))*vx(i)+...
             (person_y(ind_R1)-person_y(i))*vy(i); %Dij与Vi的向量积，用于判断j在i的前方
         ind_R2 = find(mark1>0); %找到搜索半径内位于i前方的粒子j
-        mark2(ind_R2) = (vx(ind_R2)-foll_v_tol*vx(i))*(ui0_x(i)-vx(i))+...
-            (vy(ind_R2)-foll_v_tol*vy(i))*(ui0_y(i)-vy(i)); %(Vj-Vi)与(ui0-Vi)的内积判断
+        mark2(ind_R2) = (vx(ind_R2)-vx(i))*(ui0_x(i)-vx(i))+...
+            (vy(ind_R2)-vy(i))*(ui0_y(i)-vy(i)); %(Vj-Vi)与(ui0-Vi)的内积判断
         ind_pass = find(mark2<0); %i想要超车的j
         ind_foll = find(mark2>0); %i想要跟随的j
         % 计算跟随加速度
@@ -196,12 +202,12 @@ for t=0:dt:T
         % 计算超车加速度
         if ~isempty(ind_pass) %如果有要超越的粒子，就计算超车加速度
             ind_search = [ind_pass ind_foll];
-            alpha = [60 30 0 -30 -60]; %空隙与Vi的夹角           
+            alpha = [60 30 0 -30 -60]; %空隙与Vi的夹角
 %             vx_i = vx(i)*cosd(alpha)-vy(i)*sind(alpha); %把Vi逆时针旋转alpha度，用来确定5个空隙的方向
 %             vy_i = vx(i)*sind(alpha)+vy(i)*cosd(alpha);
 %             abs_vi = sqrt(vx_i.^2+vy_i.^2);
 %             k_x = person_x(i)+L_i2k*vx_i./abs_vi; %空隙的坐标，x向，1*5
-%             k_y = person_y(i)+L_i2k*vy_i./abs_vi; %空隙的坐标，y向，1*5           
+%             k_y = person_y(i)+L_i2k*vy_i./abs_vi; %空隙的坐标，y向，1*5
             vx_k = e_x(i)*cosd(alpha)-e_y(i)*sind(alpha); %把Vi逆时针旋转alpha度，用来确定5个空隙的方向
             vy_k = e_x(i)*sind(alpha)+e_y(i)*cosd(alpha);
             k_x = person_x(i)+L_i2k*vx_k; %空隙的坐标，x向，1*5
@@ -217,9 +223,14 @@ for t=0:dt:T
             RhoK2J = m_person*(4/(pi*h_k^8))*(h_k^2-disK2J.^2).^3; %计算j对空隙的密度贡献
             RhoK2J(RhoK2J<0) = 0;
             
-            vx_j = vx(ind_search);
+            vx_j = vx(ind_search); %半径内其他行人粒子的坐标
             vy_j = vy(ind_search);
-            absVji = sqrt((vx_j-vx(i)).^2+(vy_j-vy(i)).^2); %|vj-vi|
+            q = vx_j.*vx(i)+vy_j.*vy(i); %向量内积，用于判断vj与vi的夹角
+            ind = find(q>=0); %找出范围内与i同向而行的粒子j，夹角<=90视为同向
+            vx_ji = vx_j-vx(i); %向量作差，vj-vi
+            vy_ji = vy_j-vy(i);           
+            absVji = sqrt(vx_ji.^2+vy_ji.^2); %|vj-vi|
+            absVji(ind) = 1; %将同向而行的粒子的比例系数设置为1
             absVji = absVji'*ones(1,5); %扩展成m行5列的矩阵
             RhoK2J = RhoK2J.*absVji;
             
@@ -233,7 +244,7 @@ for t=0:dt:T
             RhoK2W(RhoK2W<0) = 0;
             Rho_K = RhoK2J+RhoK2W; %计算空隙的总密度
             
-            Rho_K = Rho_kLim*Rho_K/sum(Rho_K);
+            Rho_K = Rho_kLim*Rho_K/sum(Rho_K).*[1.2 1.1 1.0 1.0 1.0];
             [~,ind_k] = min(Rho_K);
             K1 = sqrt(sum([ui0_x(i)-vx(i),ui0_y(i)-vy(i)].^2))/tau/L_i2k^2;
             % K2 = (vx_k*e_x(i)+vy_k*e_y(i));
