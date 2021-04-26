@@ -185,8 +185,8 @@ for t=0:dt:T
         mark1(ind_R1) = (person_x(ind_R1)-person_x(i))*vx(i)+...
             (person_y(ind_R1)-person_y(i))*vy(i); %Dij与Vi的向量积，用于判断j在i的前方
         ind_R2 = find(mark1>0); %找到搜索半径内位于i前方的粒子j
-        mark2(ind_R2) = (vx(ind_R2)-vx(i))*(ui0_x(i)-vx(i))+...
-            (vy(ind_R2)-vy(i))*(ui0_y(i)-vy(i)); %(Vj-Vi)与(ui0-Vi)的内积判断
+        mark2(ind_R2) = (vx(ind_R2)-foll_v_tol*vx(i))*(ui0_x(i)-vx(i))+...
+            (vy(ind_R2)-foll_v_tol*vy(i))*(ui0_y(i)-vy(i)); %(Vj-Vi)与(ui0-Vi)的内积判断
         ind_pass = find(mark2<0); %i想要超车的j
         ind_foll = find(mark2>0); %i想要跟随的j
         % 计算跟随加速度
@@ -414,7 +414,7 @@ for t=0:dt:T
 %     end
 end
 
-xlswrite('2rx_tolerance_5_Kfoll_1.xlsx', trace2r_x);
-xlswrite('2ry_tolerance_5_Kfoll_1.xlsx', trace2r_y);
-xlswrite('2lx_tolerance_5_Kfoll_1.xlsx', trace2l_x);
-xlswrite('2ly_tolerance_5_Kfoll_1.xlsx', trace2l_y);
+xlswrite('2rx_tolerance_1_Kfoll_1.xlsx', trace2r_x);
+xlswrite('2ry_tolerance_1_Kfoll_1.xlsx', trace2r_y);
+xlswrite('2lx_tolerance_1_Kfoll_1.xlsx', trace2l_x);
+xlswrite('2ly_tolerance_1_Kfoll_1.xlsx', trace2l_y);
