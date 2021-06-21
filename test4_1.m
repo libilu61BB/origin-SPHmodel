@@ -417,6 +417,7 @@ for t=0:dt:T
             axis([-1 101 -1 5]);%设置显示范围
             set(gcf,'position',[0,500,2000,160]);
     end
+    quiver(person_x,person_y,vx,vy,0.1); %绘制箭头（速度矢量），数字为缩放系数
     str_time = sprintf('疏散时间：%.2f',t);
     str_escape = sprintf('疏散人数：%.0f',sum_escape);
     str_person = sprintf('当前粒子数：%d',n);
